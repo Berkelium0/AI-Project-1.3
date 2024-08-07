@@ -1,9 +1,12 @@
-from sympy import symbols, Or, And, Not, to_cnf, Symbol
+from sympy import symbols, Or, And, Not, Symbol, Basic, srepr
 from pysat.formula import CNF
 from pysat.solvers import Solver
 from itertools import combinations
+from itertools import count
 
-FILENAME = "generated/stripes-010.clues"
+from sympy.logic.boolalg import is_literal
+
+FILENAME = "clues/arrow-1.clues"
 
 
 def get_content(filename):
@@ -75,8 +78,90 @@ def generate_combinations(n, blocks):
             row.extend([1] * block)  # Add block cells
             row.extend([0])
         results.append(row[:n])  # Trim the row to length n, if necessary
-    print(results)
+    # print(results)
     return results
+
+
+counter = count(start=1)  # Helper variable counter
+helper_vars = []
+
+
+def get_helper_var():
+    h = Symbol(f'H_{next(counter)}')
+    helper_vars.append(h)
+    return h
+
+
+def tseytin_transformation(expr):
+    """
+    Convert a logical expression to CNF using Tseytin transformation.
+
+    Parameters:
+    - expr: The SymPy logical expression to convert.
+
+    Returns:
+    - List of CNF clauses.
+    """
+    clauses = []  # List to store the resulting CNF clauses
+
+    def transform(expression):
+        if isinstance(expression, Symbol):
+            return expression  # Base case: variable
+
+        if isinstance(expression, Or):
+            # Create a new helper variable
+            # h_var = get_helper_var()
+            h_vars = []
+            for sub_expr in expression.args:
+                # Recursively process each sub-expression
+                sub_expr_transformed = transform(sub_expr)
+                h_vars.append(sub_expr_transformed)
+                # clauses.append(Or(h_var, Not(sub_expr_transformed)))
+
+            clauses.append(Or(*h_vars))  # h_var <=> (A1 OR A2 OR ...)
+            # return h_var
+
+        elif isinstance(expression, And):
+            print(expression)
+            # Create a new helper variable
+            h_var = get_helper_var()
+            not_sub_exprs = []
+            for sub_expr in expression.args:
+                not_sub_exprs.append(Not(sub_expr))
+                # Recursively process each sub-expression
+                sub_expr_transformed = transform(sub_expr)
+                clauses.append(Or(Not(h_var), sub_expr_transformed))
+            clauses.append(Or(h_var, *not_sub_exprs))  # (A1 AND A2 AND ...) => h_var
+            return h_var
+
+        elif isinstance(expression, Not):
+            # Handle negation by recursively transforming the inner expression
+            sub_expr_transformed = transform(expression.args[0])
+            return Not(sub_expr_transformed)
+
+        else:
+            raise ValueError(f"Unsupported expression type: {type(expression)}")
+
+    # Transform the given expression
+    transform(expr)
+    return clauses
+
+
+def dnf_to_cnf(dnf_formula):
+    if isinstance(dnf_formula, Or):
+        cnf_clauses = tseytin_transformation(dnf_formula)
+    else:
+        cnf_clauses = [dnf_formula]
+    cnf_clause = And(*cnf_clauses)
+    # print("DNF Formula:")
+    # print(dnf_formula)
+    # print("CNF Clauses:")
+    print(cnf_clause)
+
+    return cnf_clause
+
+
+run_counter = 0
 
 
 def generate_dnf(shape, hints):
@@ -85,16 +170,22 @@ def generate_dnf(shape, hints):
         n = int(shape[2])  # Number of columns
 
         # Create variable names dynamically
-        vars = [[symbols(f'x{i}{j}') for j in range(n)] for i in range(m)]
-        print(vars)
-
+        vars = []
         # Parse the row and column hints
         row_hints = hints[:m]
         col_hints = hints[m:m + n]
 
         def create_dnf(index, hint_numbers, is_row):
-            all_signs = generate_combinations(n, hint_numbers)
+            global run_counter
+            run_counter += 1
+            print("run_counter", run_counter)
+            all_signs = generate_combinations(n, hint_numbers) if is_row else generate_combinations(m, hint_numbers)
 
+            if is_row:
+                var_symbols = [symbols(f'x{index}{j}') for j in range(n)]
+            else:
+                var_symbols = [symbols(f'x{j}{index}') for j in range(m)]
+            vars.append(var_symbols)
             clause_terms = []
             for signs in all_signs:
                 terms = []
@@ -106,16 +197,15 @@ def generate_dnf(shape, hints):
                         terms.append(Not(var))
                 clause_terms.append(And(*terms))
 
-            print(clause_terms, len(clause_terms))
-            return Or(*clause_terms)
+            return dnf_to_cnf(Or(*clause_terms))
 
-        row_dnfs = [create_dnf(i, hint_numbers, True) for i, (hint_numbers, _) in enumerate(row_hints)]
-        col_dnfs = [create_dnf(j, hint_numbers, False) for j, (hint_numbers, _) in enumerate(col_hints)]
+        row_cnfs = [create_dnf(i, hint_numbers, True) for i, (hint_numbers, _) in enumerate(row_hints)]
+        col_cnfs = [create_dnf(j, hint_numbers, False) for j, (hint_numbers, _) in enumerate(col_hints)]
 
-        dnf_formulas = [*row_dnfs, *col_dnfs]
+        cnf_formulas = [*row_cnfs, *col_cnfs]
 
-        print(dnf_formulas)
-        return dnf_formulas
+        print(And(*cnf_formulas))
+        return And(*cnf_formulas)
 
     elif shape[0] == "hex":
         pass
@@ -123,22 +213,9 @@ def generate_dnf(shape, hints):
         raise ValueError("The first line must start with 'rect' or 'hex")
 
 
-def dnf_to_cnf(dnf_formulas):
-    # Convert DNF to CNF
-    cnf_formulas = []
-    for dnf_formula in dnf_formulas:
-        print(dnf_formula)
-        cnf_formulas.append(to_cnf(dnf_formula,simplify=True, force=True))
-
-    cnf_formula = And(*cnf_formulas)
-    print("DNF Formula:")
-    print(dnf_formulas)
-    print("\nCNF Formula:")
-    print(cnf_formula)
-    return cnf_formula
-
-
 def sympy_to_cnf(shape, sympy_expr):
+    # print("in")
+    # print(sympy_expr)
     # Extract dimensions
     rows, cols = int(shape[1]), int(shape[2])
 
@@ -153,11 +230,19 @@ def sympy_to_cnf(shape, sympy_expr):
             variable_map[var_name] = index
             rev_variable_map[index] = var_name
             index += 1
+    # Create a counter to assign numbers to helper variables
+    helper_index = count(start=index)
+    print(variable_map)
 
     # Replace SymPy variable names with integer IDs
     def replace_vars(expr):
         if isinstance(expr, Symbol):
-            return Symbol(str(variable_map[str(expr)]))
+            # Check if it's a helper variable
+            if str(expr) in variable_map:
+                return Symbol(str(variable_map[str(expr)]))
+            else:
+                variable_map[str(expr)] = next(helper_index)
+            return Symbol(str(variable_map.get(str(expr), helper_index)))
         elif isinstance(expr, And):
             return And(*[replace_vars(arg) for arg in expr.args])
         elif isinstance(expr, Or):
@@ -168,7 +253,8 @@ def sympy_to_cnf(shape, sympy_expr):
             return expr
 
     # Convert the expression to CNF form
-    cnf_expr = to_cnf(replace_vars(sympy_expr))
+    cnf_expr = replace_vars(sympy_expr)
+    print(variable_map)
 
     # Convert CNF expression to a list of clauses for PySAT
     def expr_to_clauses(expr):
@@ -187,7 +273,7 @@ def sympy_to_cnf(shape, sympy_expr):
             return [[int(str(expr).replace('~', '-'))]]
 
     clauses = expr_to_clauses(cnf_expr)
-    print(clauses)
+    # print(clauses)
     # Flatten the list of clauses
     # flat_clauses = [clause for sublist in clauses for clause in (sublist if isinstance(sublist, list) else [sublist])]
     # print(flat_clauses)
@@ -199,22 +285,22 @@ def sympy_to_cnf(shape, sympy_expr):
 def sat_solver(shape, sympy_expr):
     # Convert SymPy expression to CNF format for PySAT
     cnf_clauses = sympy_to_cnf(shape, sympy_expr)
+    print(cnf_clauses)
 
     # Initialize CNF with the clauses
     cnf = CNF(from_clauses=cnf_clauses)
 
     # create a SAT solver for this formula:
-    with Solver(bootstrap_with=cnf) as solver:
-        # 1.1 call the solver for this formula:
-        print('formula is', f'{"s" if solver.solve() else "uns"}atisfiable')
+    with Solver(name='minisat22') as solver:
+        solver.append_formula(cnf)
+        is_satisfiable = solver.solve()
+        if is_satisfiable:
+            model = solver.get_model()
+            print("Satisfiable with model:", model)
+        else:
+            print("Unsatisfiable")
 
-        # 1.2 the formula is satisfiable and so has a model:
-        print('and the model is:', solver.get_model())
-
-        # i.e. an unsatisfiable core can be extracted:
-        print('and the unsatisfiable core is:', solver.get_core())
-
-        return solver.get_model()
+    return model
 
 
 def write_model_to_file(model, shape, filename):
@@ -226,15 +312,22 @@ def write_model_to_file(model, shape, filename):
     # Create a grid to store the results
     grid = [['-' for _ in range(cols)] for _ in range(rows)]
 
-    # Assign values based on the model
+    # Extract the number of grid variables (excluding helper variables)
+    num_grid_vars = rows * cols
+
+    # Create a mapping of variable names to their index
+    variable_map = {f'x{i}{j}': idx + 1 for idx, (i, j) in enumerate((i, j) for i in range(rows) for j in range(cols))}
+
+    # Assign values based on the model, considering only grid variables
     for value in model:
-        index = abs(value) - 1  # Convert 1-based to 0-based index
-        row = index // cols
-        col = index % cols
-        if value > 0:
-            grid[row][col] = 'a'
-        else:
-            grid[row][col] = '-'
+        if abs(value) <= num_grid_vars:  # Only consider grid variables
+            index = abs(value) - 1  # Convert 1-based to 0-based index
+            row = index // cols
+            col = index % cols
+            if value > 0:
+                grid[row][col] = 'a'
+            else:
+                grid[row][col] = '-'
 
     # Write the grid to a file
     with open(filename.replace("clues", "solutions").replace("generated", "generated_solutions"), "w") as file:
@@ -244,8 +337,8 @@ def write_model_to_file(model, shape, filename):
 
 def main():
     shape, color, hints = get_content(FILENAME)
-    dnf_formulas = generate_dnf(shape, hints)
-    cnf_formula = dnf_to_cnf(dnf_formulas)
+    cnf_formula = generate_dnf(shape, hints)
+    # cnf_formula = dnf_to_cnf(dnf_formulas)
     model = sat_solver(shape, cnf_formula)
     write_model_to_file(model, shape, FILENAME)
 
