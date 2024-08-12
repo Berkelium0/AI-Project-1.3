@@ -60,9 +60,9 @@ them.
 
 **Time Complexity:**
 
-- The function explores all possible placements of blocks within a row, leading to a complexity of O(2n), where n is the
+- The function explores all possible placements of blocks within a row, leading to a complexity of O(2^n^), where n is the
   length of the row.
-- Overall: O(2n).
+- Overall: O(2^n^).
 
 ### tseytin_transformation(expr)
 
@@ -87,8 +87,8 @@ accordingly.
 **Time Complexity:**
 
 - The complexity is driven by the row generation process. For each row, generating combinations has a worst-case
-  complexity of O(2n), and this process is repeated for each row and column.
-- Overall: O(m⋅2n), where m is the number of rows or columns and n is the number of cells in each row or column.
+  complexity of O(2^n^), and this process is repeated for each row and column.
+- Overall: O(m⋅2^n^), where m is the number of rows or columns and n is the number of cells in each row or column.
 
 ### sympy_to_cnf(shape, sympy_expr)
 
@@ -144,7 +144,7 @@ file.
 - The overall time complexity is dominated by the most expensive operations: generating combinations (generate_dnf())
   and solving the SAT problem (sat_solver()).
 
-- Overall: O(m⋅2n+T), where T is the time taken by the SAT solver.
+- Overall: O(m⋅2^n^+T), where T is the time taken by the SAT solver.
 
 # Additional Information
 
