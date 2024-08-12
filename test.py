@@ -1,69 +1,552 @@
-def validate_hex_grid(hex_dict, edge_length):
-    valid = True
-    for idx, coord in hex_dict.items():
-        # Parse coordinates
-        x, y, z = map(int, coord[1:].split('_'))
+from sympy import symbols, Or, And, Not, Symbol
+from pysat.formula import CNF
+from pysat.solvers import Solver
+from itertools import combinations as itertools_combinations
+from itertools import count
 
-        # Check that x + y + z == 0
-        if x + y + z != 0:
-            print(f"Invalid coordinate: {coord}")
-            valid = False
-
-        # Check that the coordinates lie within the expected range
-        if not (-edge_length + 1 <= x <= edge_length - 1 and
-                -edge_length + 1 <= y <= edge_length - 1 and
-                -edge_length + 1 <= z <= edge_length - 1):
-            print(f"Out of range coordinate: {coord}")
-            valid = False
-
-    return valid
+FILENAME = ("clues/trees-1.clues")
+colored = False
 
 
-# Given dictionary
-hex_dict = {1: 'x8_0_-8', 2: 'x7_1_-8', 3: 'x6_2_-8', 4: 'x5_3_-8', 5: 'x4_4_-8', 6: 'x3_5_-8', 7: 'x2_6_-8',
-            8: 'x1_7_-8', 9: 'x0_8_-8', 10: 'x-1_9_-8', 11: 'x8_-1_-7', 12: 'x7_0_-7', 13: 'x6_1_-7', 14: 'x5_2_-7',
-            15: 'x4_3_-7', 16: 'x3_4_-7', 17: 'x2_5_-7', 18: 'x1_6_-7', 19: 'x0_7_-7', 20: 'x-1_8_-7', 21: 'x-2_9_-7',
-            22: 'x8_-2_-6', 23: 'x7_-1_-6', 24: 'x6_0_-6', 25: 'x5_1_-6', 26: 'x4_2_-6', 27: 'x3_3_-6', 28: 'x2_4_-6',
-            29: 'x1_5_-6', 30: 'x0_6_-6', 31: 'x-1_7_-6', 32: 'x-2_8_-6', 33: 'x-3_9_-6', 34: 'x8_-3_-5',
-            35: 'x7_-2_-5', 36: 'x6_-1_-5', 37: 'x5_0_-5', 38: 'x4_1_-5', 39: 'x3_2_-5', 40: 'x2_3_-5', 41: 'x1_4_-5',
-            42: 'x0_5_-5', 43: 'x-1_6_-5', 44: 'x-2_7_-5', 45: 'x-3_8_-5', 46: 'x-4_9_-5', 47: 'x8_-4_-4',
-            48: 'x7_-3_-4', 49: 'x6_-2_-4', 50: 'x5_-1_-4', 51: 'x4_0_-4', 52: 'x3_1_-4', 53: 'x2_2_-4', 54: 'x1_3_-4',
-            55: 'x0_4_-4', 56: 'x-1_5_-4', 57: 'x-2_6_-4', 58: 'x-3_7_-4', 59: 'x-4_8_-4', 60: 'x-5_9_-4',
-            61: 'x8_-5_-3', 62: 'x7_-4_-3', 63: 'x6_-3_-3', 64: 'x5_-2_-3', 65: 'x4_-1_-3', 66: 'x3_0_-3',
-            67: 'x2_1_-3', 68: 'x1_2_-3', 69: 'x0_3_-3', 70: 'x-1_4_-3', 71: 'x-2_5_-3', 72: 'x-3_6_-3', 73: 'x-4_7_-3',
-            74: 'x-5_8_-3', 75: 'x-6_9_-3', 76: 'x8_-6_-2', 77: 'x7_-5_-2', 78: 'x6_-4_-2', 79: 'x5_-3_-2',
-            80: 'x4_-2_-2', 81: 'x3_-1_-2', 82: 'x2_0_-2', 83: 'x1_1_-2', 84: 'x0_2_-2', 85: 'x-1_3_-2', 86: 'x-2_4_-2',
-            87: 'x-3_5_-2', 88: 'x-4_6_-2', 89: 'x-5_7_-2', 90: 'x-6_8_-2', 91: 'x-7_9_-2', 92: 'x8_-7_-1',
-            93: 'x7_-6_-1', 94: 'x6_-5_-1', 95: 'x5_-4_-1', 96: 'x4_-3_-1', 97: 'x3_-2_-1', 98: 'x2_-1_-1',
-            99: 'x1_0_-1', 100: 'x0_1_-1', 101: 'x-1_2_-1', 102: 'x-2_3_-1', 103: 'x-3_4_-1', 104: 'x-4_5_-1',
-            105: 'x-5_6_-1', 106: 'x-6_7_-1', 107: 'x-7_8_-1', 108: 'x-8_9_-1', 109: 'x8_-8_0', 110: 'x7_-7_0',
-            111: 'x6_-6_0', 112: 'x5_-5_0', 113: 'x4_-4_0', 114: 'x3_-3_0', 115: 'x2_-2_0', 116: 'x1_-1_0',
-            117: 'x0_0_0', 118: 'x-1_1_0', 119: 'x-2_2_0', 120: 'x-3_3_0', 121: 'x-4_4_0', 122: 'x-5_5_0',
-            123: 'x-6_6_0', 124: 'x-7_7_0', 125: 'x-8_8_0', 126: 'x7_-8_1', 127: 'x6_-7_1', 128: 'x5_-6_1',
-            129: 'x4_-5_1', 130: 'x3_-4_1', 131: 'x2_-3_1', 132: 'x1_-2_1', 133: 'x0_-1_1', 134: 'x-1_0_1',
-            135: 'x-2_1_1', 136: 'x-3_2_1', 137: 'x-4_3_1', 138: 'x-5_4_1', 139: 'x-6_5_1', 140: 'x-7_6_1',
-            141: 'x-8_7_1', 142: 'x6_-8_2', 143: 'x5_-7_2', 144: 'x4_-6_2', 145: 'x3_-5_2', 146: 'x2_-4_2',
-            147: 'x1_-3_2', 148: 'x0_-2_2', 149: 'x-1_-1_2', 150: 'x-2_0_2', 151: 'x-3_1_2', 152: 'x-4_2_2',
-            153: 'x-5_3_2', 154: 'x-6_4_2', 155: 'x-7_5_2', 156: 'x-8_6_2', 157: 'x5_-8_3', 158: 'x4_-7_3',
-            159: 'x3_-6_3', 160: 'x2_-5_3', 161: 'x1_-4_3', 162: 'x0_-3_3', 163: 'x-1_-2_3', 164: 'x-2_-1_3',
-            165: 'x-3_0_3', 166: 'x-4_1_3', 167: 'x-5_2_3', 168: 'x-6_3_3', 169: 'x-7_4_3', 170: 'x-8_5_3',
-            171: 'x4_-8_4', 172: 'x3_-7_4', 173: 'x2_-6_4', 174: 'x1_-5_4', 175: 'x0_-4_4', 176: 'x-1_-3_4',
-            177: 'x-2_-2_4', 178: 'x-3_-1_4', 179: 'x-4_0_4', 180: 'x-5_1_4', 181: 'x-6_2_4', 182: 'x-7_3_4',
-            183: 'x-8_4_4', 184: 'x3_-8_5', 185: 'x2_-7_5', 186: 'x1_-6_5', 187: 'x0_-5_5', 188: 'x-1_-4_5',
-            189: 'x-2_-3_5', 190: 'x-3_-2_5', 191: 'x-4_-1_5', 192: 'x-5_0_5', 193: 'x-6_1_5', 194: 'x-7_2_5',
-            195: 'x-8_3_5', 196: 'x2_-8_6', 197: 'x1_-7_6', 198: 'x0_-6_6', 199: 'x-1_-5_6', 200: 'x-2_-4_6',
-            201: 'x-3_-3_6', 202: 'x-4_-2_6', 203: 'x-5_-1_6', 204: 'x-6_0_6', 205: 'x-7_1_6', 206: 'x-8_2_6',
-            207: 'x1_-8_7', 208: 'x0_-7_7', 209: 'x-1_-6_7', 210: 'x-2_-5_7', 211: 'x-3_-4_7', 212: 'x-4_-3_7',
-            213: 'x-5_-2_7', 214: 'x-6_-1_7', 215: 'x-7_0_7', 216: 'x-8_1_7', 217: 'x0_-8_8', 218: 'x-1_-7_8',
-            219: 'x-2_-6_8', 220: 'x-3_-5_8', 221: 'x-4_-4_8', 222: 'x-5_-3_8', 223: 'x-6_-2_8', 224: 'x-7_-1_8',
-            225: 'x-8_0_8'}
+def get_content(filename):
+    with open(filename, 'r') as file:
+        # Read the entire content of the file
+        lines = file.readlines()
 
-# Edge length
-edge_length = 9
+        # Get the shape
+        first_line = lines[0].strip()
+        shape = first_line.split()
 
-# Validate the grid
-is_valid = validate_hex_grid(hex_dict, edge_length)
-if is_valid:
-    print("All coordinates are valid.")
-else:
-    print("There are invalid coordinates.")
+        # Get the color
+        color = lines[1].strip().split()
+
+        # Get the hints
+        hints = []
+        for line in lines[2:]:
+            hint = line.strip()
+            hint_parts = hint.split()
+            hint_numbers = [int(part[:-1]) for part in hint_parts]  # Remove 'a' from the end
+            hint_colors = [part[-1] for part in hint_parts]  # Extract color ('a')
+            hints.append((hint_numbers, hint_colors))
+
+    print(shape)
+    print(color)
+    print(hints)
+
+    global colored
+    if len(color) > 2:
+        colored = True
+
+    return shape, color, hints
+
+
+class Hex:
+    def __init__(self, x, y, z):
+        assert x + y + z == 0, "Invalid cube coordinates!"
+        self.x = x
+        self.y = y
+        self.z = z
+
+    def __repr__(self):
+        return f"Hex(x={self.x}, y={self.y}, z={self.z})"
+
+
+def create_hex_board(edge_length):
+    board = {}
+    number = count(1)
+    for x in range(-edge_length, edge_length + 1):
+        for y in range(-edge_length, edge_length + 1):
+            z = -x - y
+            if -edge_length <= z <= edge_length and abs(x) + abs(y) + abs(z) <= 2 * edge_length - 1:
+                board[(x, y, z)] = next(number)
+    return board
+
+
+def generate_combinations(n, blocks, block_colors):
+    if not blocks:
+        return [[0] * n]
+
+    total_block_length = sum(blocks)
+    num_blocks = len(blocks)
+
+    minimum_required_spaces = 0
+    if colored:
+        for i in range(1, num_blocks):
+            if i > 0 and block_colors[i] == block_colors[i - 1]:
+                minimum_required_spaces += 1
+    elif not colored:
+        minimum_required_spaces = num_blocks - 1  # S
+
+    total_occupied_cells = total_block_length + minimum_required_spaces
+    remaining_cells = n - total_occupied_cells
+    gap_positions = num_blocks + 1
+
+    def distribute_cells(cells, gaps):
+        """Generate all distributions of cells into gaps."""
+        for positions in itertools_combinations(range(cells + gaps - 1), gaps - 1):
+            gaps_arr = [positions[0]] + [positions[i] - positions[i - 1] - 1 for i in range(1, len(positions))] + [
+                cells + gaps - 2 - positions[-1]]
+            yield gaps_arr
+
+    results = []
+    for gap_distribution in distribute_cells(remaining_cells, gap_positions):
+        row = []
+        previous_color = None
+
+        for i, (gap, block, color) in enumerate(zip(gap_distribution, blocks + [0], block_colors + [''])):
+            if i > 0 and previous_color == color:
+                row.extend([0])
+            row.extend([0] * gap)
+            row.extend([1] * block)
+            previous_color = color
+        # print(n, len(row), blocks, block_colors, row)
+        results.append(row[:n])
+    print(results)
+    return results
+
+
+counter = count(start=1)  # Helper variable counter
+helper_vars = []
+
+
+def get_helper_var():
+    h = Symbol(f'H_{next(counter)}')
+    helper_vars.append(h)
+    return h
+
+
+def tseytin_transformation(expr):
+    """
+    Convert a logical expression to CNF using Tseytin transformation.
+
+    Parameters:
+    - expr: The SymPy logical expression to convert.
+
+    Returns:
+    - List of CNF clauses.
+    """
+    clauses = []  # List to store the resulting CNF clauses
+
+    def transform(expression):
+        if isinstance(expression, Symbol):
+            return expression  # Base case: variable
+
+        if isinstance(expression, Or):
+            # Create a new helper variable
+            # h_var = get_helper_var()
+            h_vars = []
+            for sub_expr in expression.args:
+                # Recursively process each sub-expression
+                sub_expr_transformed = transform(sub_expr)
+                h_vars.append(sub_expr_transformed)
+                # clauses.append(Or(h_var, Not(sub_expr_transformed)))
+
+            clauses.append(Or(*h_vars))  # h_var <=> (A1 OR A2 OR ...)
+            # return h_var
+
+        elif isinstance(expression, And):
+            # print(expression)
+            # Create a new helper variable
+            h_var = get_helper_var()
+            not_sub_exprs = []
+            for sub_expr in expression.args:
+                not_sub_exprs.append(Not(sub_expr))
+                # Recursively process each sub-expression
+                sub_expr_transformed = transform(sub_expr)
+                clauses.append(Or(Not(h_var), sub_expr_transformed))
+            clauses.append(Or(h_var, *not_sub_exprs))  # (A1 AND A2 AND ...) => h_var
+            return h_var
+
+        elif isinstance(expression, Not):
+            # Handle negation by recursively transforming the inner expression
+            sub_expr_transformed = transform(expression.args[0])
+            return Not(sub_expr_transformed)
+
+        else:
+            raise ValueError(f"Unsupported expression type: {type(expression)}")
+
+    # Transform the given expression
+    transform(expr)
+    return clauses
+
+
+def dnf_to_cnf(dnf_formula):
+    if isinstance(dnf_formula, Or):
+        cnf_clauses = tseytin_transformation(dnf_formula)
+    else:
+        cnf_clauses = [dnf_formula]
+    cnf_clause = And(*cnf_clauses)
+    # print("DNF Formula:")
+    # print(dnf_formula)
+    # print("CNF Clauses:")
+    # print(cnf_clause)
+
+    return cnf_clause
+
+
+def generate_hex_line_x(index, e):
+    # Returns a list of (i, j) for a given x-line index
+    return [(i, index - i) for i in range(e)]
+
+
+def generate_hex_line_y(index, e):
+    # Returns a list of (i, k) for a given y-line index
+    return [(i, index - e + i) for i in range(e)]
+
+
+def generate_hex_line_z(index, e):
+    # Returns a list of (j, k) for a given z-line index
+    return [(index - e + k, k) for k in range(e)]
+
+
+def calculate_line_length(index, e):
+    if index < e:
+        return e + index  # Line length increases as index approaches the center
+    else:
+        return 3 * e - index - 2  # Line length decreases after the center
+
+
+run_counter = 0
+
+
+def generate_dnf(shape, hints):
+    # Create variable names dynamically
+    variables = []
+
+    def create_dnf(index, hint_numbers, hint_colors, is_row, is_hex):
+        global run_counter
+        run_counter += 1
+        print("run_counter", run_counter)
+        if not is_hex:
+            m = int(shape[1])  # Number of rows
+            n = int(shape[2])  # Number of columns
+            is_row = True if is_row == "row" else False
+
+            if is_row:
+                all_signs = generate_combinations(n, hint_numbers, hint_colors)
+                var_symbols = [symbols(f'x{index}{j}') for j in range(n)]
+            else:
+                all_signs = generate_combinations(m, hint_numbers, hint_colors)
+                var_symbols = [symbols(f'x{j}{index}') for j in range(m)]
+
+            variables.append(var_symbols)
+            clause_terms = []
+            for signs in all_signs:
+                terms = []
+                for j, sign in enumerate(signs):
+                    var = variables[index][j] if is_row else variables[j][index]
+                    if sign == 1:
+                        terms.append(var)
+                    elif sign == 0:
+                        terms.append(Not(var))
+                clause_terms.append(And(*terms))
+        else:
+            coordinates = []
+            var_symbols = []
+            for (x, y, z) in var_map.values():
+                if is_row == "x":
+                    if x == index:
+                        coordinates.append((x, y, z))
+                        var_symbols.append(Symbol(f'x{x}_{y}_{z}'))
+                elif is_row == "y":
+                    if y == index:
+                        coordinates.append((x, y, z))
+                        var_symbols.append(Symbol(f'x{x}_{y}_{z}'))
+                    q = []
+                    q.extend(hint_numbers)
+                    hint_numbers = q[::-1]
+
+                elif is_row == "z":
+                    if z == index:
+                        coordinates.append((x, y, z))
+                        var_symbols.append(Symbol(f'x{x}_{y}_{z}'))
+
+            # print("coordinates", coordinates)
+            # print("var_symbols", var_symbols)
+
+            line_length = len(coordinates)
+
+            all_signs = generate_combinations(line_length, hint_numbers, hint_colors)  # Updated to hex logic
+            clause_terms = []
+
+            for signs in all_signs:
+                terms = []
+                for j, sign in enumerate(signs):
+                    var = var_symbols[j]
+                    if sign == 1:
+                        terms.append(var)
+                    elif sign == 0:
+                        terms.append(Not(var))
+                clause_terms.append(And(*terms))
+        # print(hint_numbers, clause_terms)
+        return dnf_to_cnf(Or(*clause_terms))
+
+    if shape[0] == "rect":
+        m = int(shape[1])  # Number of rows
+        n = int(shape[2])  # Number of columns
+
+        # Parse the row and column hints
+        row_hints = hints[:m]
+        col_hints = hints[m:m + n]
+
+        row_cnfs = [create_dnf(i, hint_numbers, hint_colors, "row", False) for i, (hint_numbers, hint_colors) in
+                    enumerate(row_hints)]
+        col_cnfs = [create_dnf(j, hint_numbers, hint_colors, "col", False) for j, (hint_numbers, hint_colors) in
+                    enumerate(col_hints)]
+
+        cnf_formulas = [*row_cnfs, *col_cnfs]
+
+        # print(And(*cnf_formulas))
+        return And(*cnf_formulas)
+
+    elif shape[0] == "hex":
+        e = int(shape[1])
+        board = create_hex_board(e)
+        var_map = {f'x{x}_{y}_{z}': (x, y, z) for x, y, z in board.keys()}
+
+        hint_length = e + e - 1
+        x_hints = hints[:hint_length]
+        z_hints = hints[hint_length * 2:]
+        y_hints = hints[hint_length:hint_length * 2]
+        # z_hints = z_hints_temp[::-1]
+        # print(x_hints)
+        # print(y_hints)
+        # print(z_hints)
+        row_count = range(-e + 1, e)
+
+        x_cnfs = [create_dnf(i, x_hints[i + e - 1][0], x_hints[i + e - 1][1], "x", True) for i in row_count]
+        y_cnfs = [create_dnf(j, y_hints[j + e - 1][0], y_hints[j + e - 1][1], "y", True) for j in row_count]
+        z_cnfs = [create_dnf(k, z_hints[k + e - 1][0], z_hints[k + e - 1][1], "z", True) for k in row_count]
+        cnf_formulas = [*x_cnfs, *y_cnfs, *z_cnfs]
+        # print(y_cnfs)
+        # print(And(*cnf_formulas))
+        return And(*cnf_formulas)
+
+    else:
+        raise ValueError("The first line must start with 'rect' or 'hex")
+
+
+def sympy_to_cnf(shape, sympy_expr):
+    # print("in")
+    # print(sympy_expr)
+    # Extract dimensions
+    variable_map = {}
+    rev_variable_map = {}
+    index = 1
+
+    if shape[0] == "rect":
+        rows, cols = int(shape[1]), int(shape[2])
+
+        # Create a mapping of variable names to numbers
+
+        for i in range(rows):
+            for j in range(cols):
+                var_name = f'x{i}{j}'
+                variable_map[var_name] = index
+                rev_variable_map[index] = var_name
+                index += 1
+
+    elif shape[0] == "hex":
+        edge = int(shape[1])
+        variable_map = {}
+        rev_variable_map = {}
+        index = 1
+        board = create_hex_board(edge)
+
+        for x, y, z in board.keys():
+            var_name = f'x{x}_{y}_{z}'
+            variable_map[var_name] = index
+            rev_variable_map[index] = var_name
+            index += 1
+
+        # print(variable_map)
+
+    # Create a counter to assign numbers to helper variables
+    helper_index = count(start=index)
+
+    # print(variable_map)
+
+    # Replace SymPy variable names with integer IDs
+    def replace_vars(expr):
+        if isinstance(expr, Symbol):
+            # Check if it's a helper variable
+            if str(expr) in variable_map:
+                return Symbol(str(variable_map[str(expr)]))
+            else:
+                variable_map[str(expr)] = next(helper_index)
+            return Symbol(str(variable_map.get(str(expr), helper_index)))
+        elif isinstance(expr, And):
+            return And(*[replace_vars(arg) for arg in expr.args])
+        elif isinstance(expr, Or):
+            return Or(*[replace_vars(arg) for arg in expr.args])
+        elif isinstance(expr, Not):
+            return Not(replace_vars(expr.args[0]))
+        else:
+            return expr
+
+    # Convert the expression to CNF form
+    cnf_expr = replace_vars(sympy_expr)
+
+    # print(variable_map)
+
+    # Convert CNF expression to a list of clauses for PySAT
+    def expr_to_clauses(expr):
+        if isinstance(expr, And):
+            clauses = []
+            for arg in expr.args:
+                clauses.extend(expr_to_clauses(arg))
+            return clauses
+        elif isinstance(expr, Or):
+            # Handle literals
+            return [[int(str(lit).replace('~', '-')) for lit in expr.args]]
+        elif isinstance(expr, Not):
+            return [[-int(str(expr.args[0]).replace('~', '-'))]]
+        else:
+            return [[int(str(expr).replace('~', '-'))]]
+
+    clauses = expr_to_clauses(cnf_expr)
+    # print(clauses)
+    # Flatten the list of clauses
+    # flat_clauses = [clause for sublist in clauses for clause in (sublist if isinstance(sublist, list) else [sublist])]
+    # print(flat_clauses)
+    # flat_clauses = [str(num) for num in flat_clauses]
+    # Return CNF object for PySAT
+    return clauses
+
+
+def sat_solver(shape, sympy_expr):
+    # Convert SymPy expression to CNF format for PySAT
+    cnf_clauses = sympy_to_cnf(shape, sympy_expr)
+    e = int(shape[1])
+    # print(cnf_clauses)
+    # with open("cnf_formulas.txt", "w") as f:
+    #     f.writelines(str(cnf_clauses))
+    # Initialize CNF with the clauses
+    cnf = CNF(from_clauses=cnf_clauses)
+
+    # create a SAT solver for this formula:
+    with Solver(name='Glucose42', with_proof=True) as solver:
+        solver.append_formula(cnf)
+        is_satisfiable = solver.solve()
+        print(solver.accum_stats())
+        if is_satisfiable:
+            model = solver.get_model()
+            print("Satisfiable with model:", model)
+            return model
+        else:
+            print("Unsatisfiable")
+            print("Proof", solver.get_proof())
+            print('and the unsatisfiable core is:', solver.get_core())
+
+
+def write_model_to_file(model, shape, hints, filename):
+    # Extract dimensions from the shape
+    def get_blocks_and_colors(hints):
+        block_lengths = []
+        colors = []
+        for lengths, cols in hints:
+            block_lengths.extend(lengths)
+            colors.extend(cols)
+        return block_lengths, colors
+
+    block_lengths, colors = get_blocks_and_colors(hints)
+
+    if shape[0] == 'rect':
+        rows = int(shape[1])
+        cols = int(shape[2])
+
+        # Create a grid to store the results
+        grid = [['-' for _ in range(cols)] for _ in range(rows)]
+
+        # Extract the number of grid variables (excluding helper variables)
+        num_grid_vars = rows * cols
+
+        # Initialize pointers for block lengths and colors
+        block_index = 0
+        color_index = 0
+
+        # Assign values based on the model, considering only grid variables
+        for value in model:
+            if abs(value) <= num_grid_vars:  # Only consider grid variables
+                index = abs(value) - 1  # Convert 1-based to 0-based index
+                row = index // cols
+                col = index % cols
+                if value > 0 and block_index < len(block_lengths):
+                    grid[row][col] = colors[color_index]
+                    block_lengths[block_index] -= 1
+                    if block_lengths[block_index] == 0:
+                        block_index += 1
+                        color_index += 1
+                else:
+                    grid[row][col] = '-'
+    else:
+        # Generate the hexagonal board (the dictionary containing (x, y, z) as keys)
+        board = create_hex_board(int(shape[1]))
+
+        # Extract hex coordinates from the board
+        hex_coords = list(board.keys())
+
+        # Determine unique z levels
+        x_levels = sorted(set(x for _, _, x in hex_coords))
+
+        # Create a dictionary to map z levels to their respective rows in the result grid
+        row_mapping = {x: [] for x in x_levels}
+
+        # Populate the row_mapping with coordinates for each z level
+        for coord in hex_coords:
+            x, y, z = coord
+            row_mapping[x].append((x, y, z))
+
+        # Initialize the result grid based on z levels
+        result_grid = [['-' for _ in range(len(row_mapping[x]))] for x in x_levels]
+
+        # Flattened grid for easier indexing
+        flattened_grid = hex_coords
+
+        num_grid_vars = len(flattened_grid)
+
+        # Initialize pointers for block lengths and colors
+        block_index = 0
+        color_index = 0
+
+        # Populate the result_grid based on the model
+        for value in model:
+            if abs(value) <= num_grid_vars:  # Only consider grid variables
+                index = abs(value) - 1  # Convert to 0-based index
+                x, y, z = flattened_grid[index]  # Retrieve coordinates from the flattened grid
+
+                # Find the correct row and column in the result grid
+                row_idx = x_levels.index(x)  # Row index based on z level
+                col_idx = row_mapping[x].index((x, y, z))  # Column index within the row
+
+                # Determine color based on block_lengths and colors
+                if value > 0 and block_index < len(block_lengths):
+                    result_grid[row_idx][col_idx] = colors[color_index]
+                    block_lengths[block_index] -= 1
+                    if block_lengths[block_index] == 0:
+                        block_index += 1
+                        color_index += 1
+                else:
+                    result_grid[row_idx][col_idx] = '-'
+
+        # The result_grid now represents the hexagonal grid with correct dimensions and values
+
+        grid = result_grid
+
+    # Write the grid to a file
+    with open(filename.replace("clues", "solutions").replace("generated", "generated_solutions"), "w") as file:
+        for row in grid:
+            file.write("".join(row) + "\n")
+
+
+def main():
+    shape, color, hints = get_content(FILENAME)
+    cnf_formula = generate_dnf(shape, hints)
+    # cnf_formula = dnf_to_cnf(dnf_formulas)
+    model = sat_solver(shape, cnf_formula)
+    if model:
+        write_model_to_file(model, shape, hints, FILENAME)
+
+
+if __name__ == '__main__':
+    main()

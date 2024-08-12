@@ -4,7 +4,7 @@ from pysat.solvers import Solver
 from itertools import combinations
 from itertools import count
 
-FILENAME = "clues/arrow-1.clues"
+FILENAME = "clues/trees-1.clues"
 colored = False
 
 
@@ -68,8 +68,6 @@ def generate_combinations(n, blocks, block_colors):
     if not blocks:
         return [[0] * n]
 
-    print(n, blocks, block_colors)
-
     # Total length of all blocks combined
     total_block_length = sum(blocks)  # k
     num_blocks = len(blocks)  # L
@@ -77,7 +75,7 @@ def generate_combinations(n, blocks, block_colors):
     minimum_required_spaces = 0
     if colored:
         for i in range(1, num_blocks):
-            if block_colors[i] == block_colors[i - 1]:
+            if i > 0 and block_colors[i] == block_colors[i - 1]:
                 minimum_required_spaces += 1
     elif not colored:
         minimum_required_spaces = num_blocks - 1  # S
@@ -102,16 +100,24 @@ def generate_combinations(n, blocks, block_colors):
                 gaps_arr.append(p - last_index - 1)
                 last_index = p
             gaps_arr.append(cells + gaps - 2 - last_index)
+            # print(gaps_arr)
             yield gaps_arr
 
     # Generate all possible combinations
     results = []
     for gap_distribution in distribute_cells(remaining_cells, gap_positions):
         row = []
-        for gap, block in zip(gap_distribution, blocks + [0]):  # Add a dummy block at the end
+        previous_color = None
+
+        for i, (gap, block, color) in enumerate(zip(gap_distribution, blocks + [0], block_colors + [''])):
+            if i > 0 and previous_color == color:
+                # Add mandatory gap if previous block color is the same as the current block's color
+                row.extend([0])  # Mandatory gap between same-color blocks
             row.extend([0] * gap)  # Add gap cells
             row.extend([1] * block)  # Add block cells
-            row.extend([0])
+            previous_color = color
+
+        # print(blocks, row)
         results.append(row[:n])  # Trim the row to length n, if necessary
     # print(results)
     return results
@@ -228,7 +234,7 @@ def generate_dnf(shape, hints):
     def create_dnf(index, hint_numbers, hint_colors, is_row, is_hex):
         global run_counter
         run_counter += 1
-        # print("run_counter", run_counter)
+        print("run_counter", run_counter)
         if not is_hex:
             m = int(shape[1])  # Number of rows
             n = int(shape[2])  # Number of columns
@@ -442,13 +448,23 @@ def sat_solver(shape, sympy_expr):
         if is_satisfiable:
             model = solver.get_model()
             print("Satisfiable with model:", model[:(3 * e * e) - (3 * e) + 1])
-            return model[:(3 * e * e) - (3 * e) + 1]
+            return model
         else:
             print("Unsatisfiable")
 
 
-def write_model_to_file(model, shape, filename):
+def write_model_to_file(model, shape, hints, filename):
     # Extract dimensions from the shape
+    def get_blocks_and_colors(hints):
+        block_lengths = []
+        colors = []
+        for lengths, cols in hints:
+            block_lengths.extend(lengths)
+            colors.extend(cols)
+        return block_lengths, colors
+
+    block_lengths, colors = get_blocks_and_colors(hints)
+
     if shape[0] == 'rect':
         rows = int(shape[1])
         cols = int(shape[2])
@@ -459,14 +475,22 @@ def write_model_to_file(model, shape, filename):
         # Extract the number of grid variables (excluding helper variables)
         num_grid_vars = rows * cols
 
+        # Initialize pointers for block lengths and colors
+        block_index = 0
+        color_index = 0
+
         # Assign values based on the model, considering only grid variables
         for value in model:
             if abs(value) <= num_grid_vars:  # Only consider grid variables
                 index = abs(value) - 1  # Convert 1-based to 0-based index
                 row = index // cols
                 col = index % cols
-                if value > 0:
-                    grid[row][col] = 'a'
+                if value > 0 and block_index < len(block_lengths):
+                    grid[row][col] = colors[color_index]
+                    block_lengths[block_index] -= 1
+                    if block_lengths[block_index] == 0:
+                        block_index += 1
+                        color_index += 1
                 else:
                     grid[row][col] = '-'
     else:
@@ -495,6 +519,10 @@ def write_model_to_file(model, shape, filename):
 
         num_grid_vars = len(flattened_grid)
 
+        # Initialize pointers for block lengths and colors
+        block_index = 0
+        color_index = 0
+
         # Populate the result_grid based on the model
         for value in model:
             if abs(value) <= num_grid_vars:  # Only consider grid variables
@@ -505,8 +533,13 @@ def write_model_to_file(model, shape, filename):
                 row_idx = x_levels.index(x)  # Row index based on z level
                 col_idx = row_mapping[x].index((x, y, z))  # Column index within the row
 
-                if value > 0:
-                    result_grid[row_idx][col_idx] = 'a'
+                # Determine color based on block_lengths and colors
+                if value > 0 and block_index < len(block_lengths):
+                    result_grid[row_idx][col_idx] = colors[color_index]
+                    block_lengths[block_index] -= 1
+                    if block_lengths[block_index] == 0:
+                        block_index += 1
+                        color_index += 1
                 else:
                     result_grid[row_idx][col_idx] = '-'
 
@@ -526,7 +559,7 @@ def main():
     # cnf_formula = dnf_to_cnf(dnf_formulas)
     model = sat_solver(shape, cnf_formula)
     if model:
-        write_model_to_file(model, shape, FILENAME)
+        write_model_to_file(model, shape, hints, FILENAME)
 
 
 if __name__ == '__main__':
