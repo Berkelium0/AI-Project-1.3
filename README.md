@@ -4,19 +4,63 @@
 
 ## Hexagonal and Rectangular Grid Puzzle Solver
 
-### Introduction
-
 This Python project implements a solver for puzzles on hexagonal and rectangular grids using logical deduction and SAT (
 Boolean satisfiability) solving techniques. The solver can handle puzzles where certain conditions must be met along
 rows, columns, or hexagonal lines based on provided hints. The puzzles can be either monochrome or colored.
 
-# Dependencies
+## Dependencies
 
-# Usage
+To run this Nonogram solver, you need to set up the environment with the necessary dependencies. The project is built
+using Python and relies on several external libraries. Below are the details of the required dependencies and how to
+install them:
 
-Running the Solver
+### Programming Language
 
-# Solving a Nonogram
+- **Python**: The project is compatible with Python 3.8 or later.
+
+### External Libraries
+
+The project uses the following Python libraries:
+
++ **NumPy**
+
+    - **Description**: NumPy is a fundamental package for numerical computations in Python. It provides support for
+      large, multi-dimensional arrays and matrices, along with a collection of mathematical functions to operate on
+      these arrays efficiently.
+    - **Usage in the Project**: NumPy is used for handling and manipulating the grid data, performing operations on
+      arrays, and managing the puzzle’s state in a memory-efficient manner.
+    - **Installation**: Run `pip install numpy`
+
++ **SymPy**
+
+    - **Description**: SymPy is a Python library for symbolic mathematics. It provides tools for algebraic manipulation,
+      equation solving, and logical expression handling.
+    - **Usage in the Project**: SymPy is used to construct and manipulate logical expressions required for the Nonogram
+      solver. Specifically, it helps in converting these expressions into Conjunctive Normal Form (CNF) for use with SAT
+      solvers.
+    - **Installation**: Run `pip install sympy`
+
++ **PySAT (Python SAT Solver)**
+
+    - **Description**: PySAT is a library for SAT solving that interfaces with various SAT solvers. SAT solvers are used
+      to determine the satisfiability of Boolean expressions, which is essential for solving constraints in puzzles.
+    - **Usage in the Project**: PySAT is used to solve the CNF formula generated from the Nonogram constraints. It helps
+      determine if there is a valid assignment of values that satisfies all the puzzle’s conditions.
+    - **Installation**: Run `pip install python-sat`
+
+### Installing Dependencies
+
+To install all the required libraries, you can use the following `pip` command:
+
+```bash
+pip install numpy sympy python-sat
+```
+
+## Usage
+
+## Running the Solver
+
+## Solving a Nonogram
 
 ## Structure and Time Complexities
 
@@ -47,8 +91,8 @@ the corresponding z coordinate.
 
 **Time Complexity:**
 
-- The number of possible coordinates to check is proportional to O(edge_length^3^).
-- Overall: O(edge_length^3^).
+- The number of possible coordinates to check is proportional to O(edge_length<sup>3</sup>).
+- Overall: O(edge_length<sup>3</sup>).
 
 ### generate_combinations(n, blocks, block_colors)
 
@@ -60,9 +104,10 @@ them.
 
 **Time Complexity:**
 
-- The function explores all possible placements of blocks within a row, leading to a complexity of O(2^n^), where n is the
+- The function explores all possible placements of blocks within a row, leading to a complexity of O(2<sup>n</sup>),
+  where n is the
   length of the row.
-- Overall: O(2^n^).
+- Overall: O(2<sup>n</sup>).
 
 ### tseytin_transformation(expr)
 
@@ -87,8 +132,9 @@ accordingly.
 **Time Complexity:**
 
 - The complexity is driven by the row generation process. For each row, generating combinations has a worst-case
-  complexity of O(2^n^), and this process is repeated for each row and column.
-- Overall: O(m⋅2^n^), where m is the number of rows or columns and n is the number of cells in each row or column.
+  complexity of O(2<sup>n</sup>), and this process is repeated for each row and column.
+- Overall: O(m⋅2<sup>n</sup>), where m is the number of rows or columns and n is the number of cells in each row or
+  column.
 
 ### sympy_to_cnf(shape, sympy_expr)
 
@@ -144,7 +190,7 @@ file.
 - The overall time complexity is dominated by the most expensive operations: generating combinations (generate_dnf())
   and solving the SAT problem (sat_solver()).
 
-- Overall: O(m⋅2^n^+T), where T is the time taken by the SAT solver.
+- Overall: O(m⋅2<sup>n</sup>+T), where T is the time taken by the SAT solver.
 
-# Additional Information
+## Additional Information
 
