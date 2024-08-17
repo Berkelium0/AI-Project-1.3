@@ -5,7 +5,7 @@ from pysat.solvers import Solver
 from itertools import combinations
 from itertools import count
 
-FILENAME = "clues/my_hex.clues"
+FILENAME = "clues/nonogram.clues"
 colored = False
 
 
@@ -88,7 +88,7 @@ cells_in_z = {}
 
 def create_start_args(index, length, axis, hint_numbers, hint_colors, coordinates=None):
     global variables, cells_in_row, cells_in_col
-    print("hint_numbers", hint_numbers, "length", length)
+    # print("hint_numbers", hint_numbers, "length", length)
     total_block_length = sum(hint_numbers)
     num_blocks = len(hint_colors)
 
@@ -179,7 +179,7 @@ def create_start_args(index, length, axis, hint_numbers, hint_colors, coordinate
                         next_block_starts.append(
                             Or(Not(current_block_start), Not(Symbol(f'{axis}axis_{index}_{i}_{block_index + 1}'))))
                 args_that_imply.append(And(*next_block_starts))
-            print("args_that_imply", args_that_imply)
+            # print("args_that_imply", args_that_imply)
 
             # This start Implies the cells in it has to be filled
             filled_cells = []
@@ -210,7 +210,7 @@ def create_start_args(index, length, axis, hint_numbers, hint_colors, coordinate
                 args_that_fill_cells.append(And(*filled_cells))
             else:
                 args_that_fill_cells.append(And(filled_cells[0]))
-            print("args_that_fill_cells", args_that_fill_cells)
+            # print("args_that_fill_cells", args_that_fill_cells)
 
         # print("def_filled", def_filled)
         # print("starts", starts)
@@ -218,12 +218,12 @@ def create_start_args(index, length, axis, hint_numbers, hint_colors, coordinate
         for key, value in def_filled.items():
             if len(value) == len(starts):
                 def_true.append(Symbol(key))
-        print("def_true", def_true)
+        # print("def_true", def_true)
 
         # Make sure there is only one start type
 
         args_that_imply_only_one_start.append(exactly_one_true(starts))
-        print("args_that_imply_only_one_start", args_that_imply_only_one_start)
+        # print("args_that_imply_only_one_start", args_that_imply_only_one_start)
 
         # Adjusting the latest start based on the next block's color
         if block_index < len(hint_numbers) - 1:  # Ensure we are not at the last block
@@ -287,10 +287,12 @@ def generate_cnf(shape, hints):
                         line_length += 1
                         coordinates.append((x, y, z))
 
-            print(axis, coordinates)
+            # print(axis, coordinates)
             hex_args = create_start_args(index, line_length, axis, hint_numbers, hint_colors, coordinates)
 
             return hex_args
+
+    cell_args = []
 
     if shape[0] == "rect":
         m = int(shape[1])  # Number of rows
@@ -315,6 +317,14 @@ def generate_cnf(shape, hints):
         # print(row_args, "\n", col_args)
         args = [*row_args, *col_args]
 
+        for keys, values in cells_in_row.items():
+            if values:
+                cell_args.append(Or(Not(keys), Or(*values)))
+
+        for keys, values in cells_in_col.items():
+            if values:
+                cell_args.append(Or(Not(keys), Or(*values)))
+
     elif shape[0] == "hex":
         edge = int(shape[1])  # Number of rows
 
@@ -322,7 +332,7 @@ def generate_cnf(shape, hints):
         board = create_hex_board(edge)
         for x, y, z in board.keys():
             variables.append(Symbol(f'x{x}_{y}_{z}'))
-        print("variables", variables)
+        # print("variables", variables)
 
         hint_length = edge + edge - 1
         x_hints = hints[:hint_length]
@@ -339,19 +349,17 @@ def generate_cnf(shape, hints):
         # # print(row_args, "\n", col_args)
         args = [*x_args, *y_args, *z_args]
 
-    cell_args = []
-    for keys, values in cells_in_row.items():
+    for keys, values in cells_in_x.items():
         if values:
-            # print(keys, values)
-            cell_args.append(Or(Not(keys), Or(*values)))
-            # for value in values:
-            #     print("HERE",keys, value)
-            #     cell_args.append(Or(Symbol(keys),Not(value)))
+            cell_args.append(Or(Not(Symbol(keys)), Or(*values)))
 
-    for keys, values in cells_in_col.items():
+    for keys, values in cells_in_y.items():
         if values:
-            # print(keys, values)
-            cell_args.append(Or(Not(keys), Or(*values)))
+            cell_args.append(Or(Not(Symbol(keys)), Or(*values)))
+
+    for keys, values in cells_in_z.items():
+        if values:
+            cell_args.append(Or(Not(Symbol(keys)), Or(*values)))
 
     # print("cell_args", cell_args)
     args.append(And(*cell_args))
@@ -439,8 +447,8 @@ def sat_solver(shape, sympy_expr):
         is_satisfiable = solver.solve()
         if is_satisfiable:
             model = solver.get_model()
-            print("Satisfiable with model:", model)
-            # print("Satisfiable")
+            # print("Satisfiable with model:", model)
+            print("Satisfiable")
             return model
         else:
             print("Unsatisfiable")
@@ -553,7 +561,7 @@ def write_model_to_file(model, shape, hints, filename):
 def main():
     shape, color, hints = get_content(FILENAME)
     cnf_formula = generate_cnf(shape, hints)
-    print("cnf_formula", is_cnf(cnf_formula), cnf_formula)
+    # print("cnf_formula", is_cnf(cnf_formula), cnf_formula)
     model = sat_solver(shape, cnf_formula)
     if model:
         write_model_to_file(model, shape, hints, FILENAME)
