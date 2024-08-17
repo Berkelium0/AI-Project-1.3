@@ -1,46 +1,153 @@
-from itertools import combinations
-
-
-def xor_to_cnf(xvars):
-    # Given a list of variables for XOR constraint
-    # xvars is a list of variable names, e.g., ['x1', 'x2', 'x3']
-
-    num_vars = len(xvars)
-    clauses = []
-
-    # Iterate over all combinations of variables (2^num_vars - 1 combinations)
-    for i in range(1, num_vars + 1):
-        for comb in combinations(xvars, i):
-            # Each combination of size i represents a clause
-            clause = list(comb)
-            # Add the clause to the list of clauses
-            # We need to create a clause where at least one of these variables should be True
-            clauses.append(clause)
-            # Add the negation clause for XOR, i.e., (¬x1 ∨ ¬x2 ∨ ... ∨ ¬xn) when n is odd
-
-    # Add the clauses to ensure that exactly one of these combinations is true
-    for clause in clauses:
-        neg_clause = [f"¬{var}" for var in clause]
-        clauses.append(neg_clause)
-
-    return clauses
-
-
-# Example usage
-xvars = ['x1', 'x2', 'x3']
-cnf_clauses = xor_to_cnf(xvars)
-
-for clause in cnf_clauses:
-    print(" OR ".join(clause))
-
-# Example usage
-# if __name__ == "__main__":
-# Define variables
-# A, B, C, D, E, F, G, H, I, F, K, L, M, N, O, P, R, S, T, E, F, G, Q, X1, X2, X3, X4, X5, X6, X7, X8, X9, X0 = 0
-# Convert XOR of multiple variables to CNF
-
-
-# print(
-#   xor_to_cnf(
-#      (A, B, C, D, E, F, G, H, I, F, K, L, M, N, O, P, R, S, T, E, F, G, Q, X1, X2, X3, X4, X5, X6, X7, X8, X9,
-#      X0)))
+x-1_0_1 &
+x-1_1_0 &
+x-2_1_1 &
+x0_-1_1 & 
+x0_1_-1 &
+x1_-1_0 &
+x1_-2_1 &
+x1_0_-1 &
+x1_1_-2 & 
+xaxis_1_0_0 & 
+yaxis_1_0_0 & 
+zaxis_1_0_0 & 
+~x-1_-1_2 &
+~x-1_2_-1 &
+~x-2_0_2 &
+~x-2_2_0 &
+~x0_-2_2 &
+~x0_2_-2 &
+~x2_-1_-1 & 
+~x2_-2_0 &
+~x2_0_-2 &
+(x-1_-1_2 | ~xaxis_-1_0_0) &
+(x-1_-1_2 | ~yaxis_-1_0_0) &
+(x-1_0_1 | ~xaxis_-1_0_0) & 
+(x-1_0_1 | ~xaxis_-1_1_0) & 
+(x-1_0_1 | ~yaxis_0_1_0) &
+(x-1_0_1 | ~zaxis_1_0_0) &
+(x-1_1_0 | ~xaxis_-1_1_0) &
+(x-1_1_0 | ~xaxis_-1_2_0) & 
+(x-1_1_0 | ~yaxis_1_0_0) & 
+(x-1_1_0 | ~zaxis_0_1_0) &
+(x-1_2_-1 | ~xaxis_-1_2_0) &
+(x-1_2_-1 | ~zaxis_-1_0_0) &
+(x-2_0_2 | ~xaxis_-2_0_0) & 
+(x-2_0_2 | ~yaxis_0_0_0) &
+(x-2_1_1 | ~xaxis_-2_1_0) & 
+(x-2_1_1 | ~yaxis_1_0_0) &
+(x-2_1_1 | ~zaxis_1_0_0) &
+(x-2_2_0 | ~xaxis_-2_2_0) &
+(x-2_2_0 | ~zaxis_0_0_0) &
+(x0_-1_1 | ~xaxis_0_1_0) &
+(x0_-1_1 | ~yaxis_-1_0_0) &
+(x0_-1_1 | ~yaxis_-1_1_0) &
+(x0_-1_1 | ~zaxis_1_0_0) &
+(x0_-2_2 | ~xaxis_0_0_0) &
+(x0_-2_2 | ~yaxis_-2_0_0) & 
+(x0_0_0 | ~xaxis_0_2_0) &
+(x0_0_0 | ~xaxis_0_2_1) & 
+(x0_0_0 | ~yaxis_0_2_0) & 
+(x0_0_0 | ~yaxis_0_2_1) & 
+(x0_0_0 | ~zaxis_0_2_0) &
+(x0_0_0 | ~zaxis_0_2_1) & 
+(x0_1_-1 | ~xaxis_0_3_1) &
+(x0_1_-1 | ~yaxis_1_0_0) &
+(x0_1_-1 | ~zaxis_-1_0_0) &
+(x0_1_-1 | ~zaxis_-1_1_0) & 
+(x0_2_-2 | ~xaxis_0_4_1) & 
+(x0_2_-2 | ~zaxis_-2_0_0) &
+(x1_-1_0 | ~xaxis_1_0_0) & 
+(x1_-1_0 | ~yaxis_-1_1_0) &
+(x1_-1_0 | ~yaxis_-1_2_0) &
+(x1_-1_0 | ~zaxis_0_3_1) & 
+(x1_-2_1 | ~xaxis_1_0_0) & 
+(x1_-2_1 | ~yaxis_-2_1_0) &
+(x1_-2_1 | ~zaxis_1_0_0) & 
+(x1_0_-1 | ~xaxis_1_0_0) & 
+(x1_0_-1 | ~yaxis_0_3_1) &
+(x1_0_-1 | ~zaxis_-1_1_0) &
+(x1_0_-1 | ~zaxis_-1_2_0) &
+(x1_1_-2 | ~xaxis_1_0_0) & 
+(x1_1_-2 | ~yaxis_1_0_0) & 
+(x1_1_-2 | ~zaxis_-2_1_0) & 
+(x2_-1_-1 | ~yaxis_-1_2_0) &
+(x2_-1_-1 | ~zaxis_-1_2_0) & 
+(x2_-2_0 | ~yaxis_-2_2_0) & 
+(x2_-2_0 | ~zaxis_0_4_1) &
+(x2_0_-2 | ~yaxis_0_4_1) &
+(x2_0_-2 | ~zaxis_-2_2_0) &
+(xaxis_-1_0_0 | xaxis_-1_1_0 | xaxis_-1_2_0) & 
+(xaxis_-2_0_0 | xaxis_-2_1_0 | xaxis_-2_2_0) &
+(xaxis_0_0_0 | xaxis_0_1_0 | xaxis_0_2_0) &
+(xaxis_0_2_1 | xaxis_0_3_1 | xaxis_0_4_1) &
+(yaxis_-1_0_0 | yaxis_-1_1_0 | yaxis_-1_2_0) &
+(yaxis_-2_0_0 | yaxis_-2_1_0 | yaxis_-2_2_0) & 
+(yaxis_0_0_0 | yaxis_0_1_0 | yaxis_0_2_0) &
+(yaxis_0_2_1 | yaxis_0_3_1 | yaxis_0_4_1) &
+(zaxis_-1_0_0 | zaxis_-1_1_0 | zaxis_-1_2_0) &
+(zaxis_-2_0_0 | zaxis_-2_1_0 | zaxis_-2_2_0) &
+(zaxis_0_0_0 | zaxis_0_1_0 | zaxis_0_2_0) & 
+(zaxis_0_2_1 | zaxis_0_3_1 | zaxis_0_4_1) & 
+(~xaxis_-1_0_0 | ~xaxis_-1_1_0) & 
+(~xaxis_-1_0_0 | ~xaxis_-1_2_0) & 
+(~xaxis_-1_1_0 | ~xaxis_-1_2_0) &
+(~xaxis_-2_0_0 | ~xaxis_-2_1_0) &
+(~xaxis_-2_0_0 | ~xaxis_-2_2_0) & 
+(~xaxis_-2_1_0 | ~xaxis_-2_2_0) &
+(~xaxis_0_0_0 | ~xaxis_0_0_1) & 
+(~xaxis_0_0_0 | ~xaxis_0_1_0) &
+(~xaxis_0_0_0 | ~xaxis_0_1_1) &
+(~xaxis_0_0_0 | ~xaxis_0_2_0) &
+(~xaxis_0_0_1 | ~xaxis_0_1_0) &
+(~xaxis_0_0_1 | ~xaxis_0_2_0) & 
+(~xaxis_0_1_0 | ~xaxis_0_1_1) & 
+(~xaxis_0_1_0 | ~xaxis_0_2_0) &
+(~xaxis_0_1_0 | ~xaxis_0_2_1) &
+(~xaxis_0_1_1 | ~xaxis_0_2_0) &
+(~xaxis_0_2_0 | ~xaxis_0_2_1) &
+(~xaxis_0_2_0 | ~xaxis_0_3_1) &
+(~xaxis_0_2_1 | ~xaxis_0_3_1) & 
+(~xaxis_0_2_1 | ~xaxis_0_4_1) &
+(~xaxis_0_3_1 | ~xaxis_0_4_1) &
+(~yaxis_-1_0_0 | ~yaxis_-1_1_0) &
+(~yaxis_-1_0_0 | ~yaxis_-1_2_0) & 
+(~yaxis_-1_1_0 | ~yaxis_-1_2_0) & 
+(~yaxis_-2_0_0 | ~yaxis_-2_1_0) & 
+(~yaxis_-2_0_0 | ~yaxis_-2_2_0) & 
+(~yaxis_-2_1_0 | ~yaxis_-2_2_0) &
+(~yaxis_0_0_0 | ~yaxis_0_0_1) &
+(~yaxis_0_0_0 | ~yaxis_0_1_0) & 
+(~yaxis_0_0_0 | ~yaxis_0_1_1) &
+(~yaxis_0_0_0 | ~yaxis_0_2_0) &
+(~yaxis_0_0_1 | ~yaxis_0_1_0) &
+(~yaxis_0_0_1 | ~yaxis_0_2_0) &
+(~yaxis_0_1_0 | ~yaxis_0_1_1) &
+(~yaxis_0_1_0 | ~yaxis_0_2_0) &
+(~yaxis_0_1_0 | ~yaxis_0_2_1) &
+(~yaxis_0_1_1 | ~yaxis_0_2_0) &
+(~yaxis_0_2_0 | ~yaxis_0_2_1) &
+(~yaxis_0_2_0 | ~yaxis_0_3_1) &
+(~yaxis_0_2_1 | ~yaxis_0_3_1) & 
+(~yaxis_0_2_1 | ~yaxis_0_4_1) &
+(~yaxis_0_3_1 | ~yaxis_0_4_1) &
+(~zaxis_-1_0_0 | ~zaxis_-1_1_0) & 
+(~zaxis_-1_0_0 | ~zaxis_-1_2_0) & 
+(~zaxis_-1_1_0 | ~zaxis_-1_2_0) & 
+(~zaxis_-2_0_0 | ~zaxis_-2_1_0) & 
+(~zaxis_-2_0_0 | ~zaxis_-2_2_0) &
+(~zaxis_-2_1_0 | ~zaxis_-2_2_0) &
+(~zaxis_0_0_0 | ~zaxis_0_0_1) & 
+(~zaxis_0_0_0 | ~zaxis_0_1_0) &
+(~zaxis_0_0_0 | ~zaxis_0_1_1) &
+(~zaxis_0_0_0 | ~zaxis_0_2_0) &
+(~zaxis_0_0_1 | ~zaxis_0_1_0) &
+(~zaxis_0_0_1 | ~zaxis_0_2_0) &
+(~zaxis_0_1_0 | ~zaxis_0_1_1) &
+(~zaxis_0_1_0 | ~zaxis_0_2_0) &
+(~zaxis_0_1_0 | ~zaxis_0_2_1) &
+(~zaxis_0_1_1 | ~zaxis_0_2_0) &
+(~zaxis_0_2_0 | ~zaxis_0_2_1) &
+(~zaxis_0_2_0 | ~zaxis_0_3_1) &
+(~zaxis_0_2_1 | ~zaxis_0_3_1) &
+(~zaxis_0_2_1 | ~zaxis_0_4_1) &
+(~zaxis_0_3_1 | ~zaxis_0_4_1)

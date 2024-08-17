@@ -1,10 +1,11 @@
-from sympy import symbols, Or, And, Not, Symbol, Xor, to_cnf, srepr
+from sympy import symbols, Or, And, Not, Symbol, srepr
+from sympy.logic.boolalg import is_cnf
 from pysat.formula import CNF
 from pysat.solvers import Solver
 from itertools import combinations
 from itertools import count
 
-FILENAME = "generated/stripes-006.clues"
+FILENAME = "clues/my_hex.clues"
 colored = False
 
 
@@ -62,68 +63,32 @@ def create_hex_board(edge_length):
     return board
 
 
-counter = count(start=1)  # Helper variable counter
-helper_vars = []
+def exactly_one_true(clauses):
+    # Step 1: At least one clause is true (OR all clauses together)
+    at_least_one_true = Or(*clauses)
 
+    # Step 2: No two clauses are true simultaneously (AND of pairwise ORs of their negations)
+    no_two_true_simultaneously = And(
+        *[Or(~clauses[i], ~clauses[j]) for i in range(len(clauses)) for j in range(i + 1, len(clauses))]
+    )
 
-def get_helper_var():
-    h = Symbol(f'H_{next(counter)}')
-    helper_vars.append(h)
-    return h
-
-
-def Xmor(expr):
-    clauses = []  # List to store the resulting CNF clauses
-
-    def transform(expression):
-        if isinstance(expression, Symbol):
-            return expression  # Base case: variable
-
-        if isinstance(expression, Or):
-            # Create a new helper variable
-            # h_var = get_helper_var()
-            h_vars = []
-            for sub_expr in expression.args:
-                # Recursively process each sub-expression
-                sub_expr_transformed = transform(sub_expr)
-                h_vars.append(sub_expr_transformed)
-                # clauses.append(Or(h_var, Not(sub_expr_transformed)))
-
-            clauses.append(Or(*h_vars))  # h_var <=> (A1 OR A2 OR ...)
-            # return h_var
-
-        elif isinstance(expression, And):
-            # print(expression)
-            # Create a new helper variable
-            h_var = get_helper_var()
-            not_sub_exprs = []
-            for sub_expr in expression.args:
-                not_sub_exprs.append(Not(sub_expr))
-                # Recursively process each sub-expression
-                sub_expr_transformed = transform(sub_expr)
-                clauses.append(Or(Not(h_var), sub_expr_transformed))
-            clauses.append(Or(h_var, *not_sub_exprs))  # (A1 AND A2 AND ...) => h_var
-            return h_var
-
-        elif isinstance(expression, Not):
-            # Handle negation by recursively transforming the inner expression
-            sub_expr_transformed = transform(expression.args[0])
-            return Not(sub_expr_transformed)
-
-        else:
-            raise ValueError(f"Unsupported expression type: {type(expression)}")
-
-    # Transform the given expression
-    transform(expr)
-    return clauses
+    # Final CNF: Combine the two conditions
+    cnf_formula = And(at_least_one_true, no_two_true_simultaneously)
+    # print(cnf_formula)
+    return cnf_formula
 
 
 variables = []
+cells_in_row = {}
+cells_in_col = {}
+cells_in_x = {}
+cells_in_y = {}
+cells_in_z = {}
 
 
-def create_start_args(index, length, axis, hint_numbers, hint_colors):
-    global variables
-    print(hint_numbers)
+def create_start_args(index, length, axis, hint_numbers, hint_colors, coordinates=None):
+    global variables, cells_in_row, cells_in_col
+    print("hint_numbers", hint_numbers, "length", length)
     total_block_length = sum(hint_numbers)
     num_blocks = len(hint_colors)
 
@@ -139,90 +104,193 @@ def create_start_args(index, length, axis, hint_numbers, hint_colors):
 
     args_that_imply = []
     args_that_fill_cells = []
+    def_filled = {}
+
     args_that_imply_only_one_start = []
-    args_say_cells_have_starts = []
     earliest_start = 0
     latest_start = length - total_occupied_cells + 1
+    # print("latest_start", latest_start, "length", length, "total_occupied_cells", total_occupied_cells)
+
+    if len(hint_numbers) == 0:
+        empty_cell = []
+        if axis == "r":
+            for i in range(length):
+                empty_cell.append(Not(Symbol(f"x{index}_{i}")))
+        elif axis == "c":
+            for i in range(length):
+                empty_cell.append(Not(Symbol(f"x{i}_{index}")))
+        else:
+            for x, y, z in coordinates:
+                empty_cell.append(Not(Symbol(f"x{x}_{y}_{z}")))
+
+        return And(*empty_cell)
 
     # indexes to imply cells cant be filled without a start
-    cells_in_axis = {}
     if axis == "r":
-        cells_in_axis = {f"x{index}{i}": [] for i in range(length)}
+        cells_in_row.update({f"x{index}_{i}": [] for i in range(length)})
     elif axis == "c":
-        cells_in_axis = {f"x{i}{index}": [] for i in range(length)}
-    print(cells_in_axis)
+        cells_in_col.update({f"x{i}_{index}": [] for i in range(length)})
+    elif axis == "x":
+        for x, y, z in coordinates:
+            cells_in_x.update({f"x{x}_{y}_{z}": []})
+    elif axis == "y":
+        for x, y, z in coordinates:
+            cells_in_y.update({f"x{x}_{y}_{z}": []})
+    elif axis == "z":
+        for x, y, z in coordinates:
+            cells_in_z.update({f"x{x}_{y}_{z}": []})
+
+    # print("cells_in_x", cells_in_x)
+    # print("cells_in_y", cells_in_y)
+    # print("cells_in_z", cells_in_z)
+
     for block_index, block in enumerate(hint_numbers):
-        print("block_index", block_index, "block", block)
+        #  print("block_index", block_index, "block", block)
+        if axis == "r":
+            for i in range(length):
+                def_filled[f"x{index}_{i}"] = []
+        elif axis == "c":
+            for i in range(length):
+                def_filled[f"x{i}_{index}"] = []
+        else:
+            for x, y, z in coordinates:
+                def_filled[f"x{x}_{y}_{z}"] = []
+
         starts = []
         # Add the block starts
+        # print("earliest_start", earliest_start, "latest_start", latest_start, "length", length)
         for j in range(earliest_start, latest_start):
-            current_block_start = Symbol(f'{axis}{index}{j}{block_index}')
+            current_block_start = Symbol(f'{axis}axis_{index}_{j}_{block_index}')
             variables.append(current_block_start)
             starts.append(current_block_start)
 
             # This start Implies the next start cant be here or after here
+
             if block_index < len(hint_numbers) - 1:
-                next_block_starts = [Or(Not(current_block_start), Not(Symbol(f'{axis}{index}{j}{block_index + 1}')))]
-                for i in range(block + 1):  # TODO can change for colored
-                    if j + i < latest_start:
+                next_block_starts = []
+                length_depending_on_color = j + block + 1
+                if colored:
+                    if hint_colors[block_index] != hint_colors[block_index + 1]:
+                        length_depending_on_color = j + block
+
+                for i in range(length_depending_on_color):
+                    if i <= latest_start:
+                        variables.append(Symbol(f'{axis}axis_{index}_{i}_{block_index + 1}'))
                         next_block_starts.append(
-                            Or(Not(current_block_start), Not(Symbol(f'{axis}{index}{j + i}{block_index + 1}'))))
+                            Or(Not(current_block_start), Not(Symbol(f'{axis}axis_{index}_{i}_{block_index + 1}'))))
                 args_that_imply.append(And(*next_block_starts))
-            # print("args_that_imply", args_that_imply)
+            print("args_that_imply", args_that_imply)
 
             # This start Implies the cells in it has to be filled
             filled_cells = []
-            for i in range(block):  # TODO make hex friendly
+            for i in range(block):
                 if axis == "r":
-                    cell = f'x{index}{j + i}'
+                    # print(index, j, i, current_block_start, length, earliest_start, latest_start)
+                    cell = f'x{index}_{j + i}'
+                    cells_in_row[cell].append(current_block_start)
                 elif axis == "c":
-                    cell = f'x{j + i}{index}'
+                    cell = f'x{j + i}_{index}'
+                    cells_in_col[cell].append(current_block_start)
+                elif axis == "x":
+                    cell = f'x{coordinates[j + i][0]}_{coordinates[j + i][1]}_{coordinates[j + i][2]}'
+                    cells_in_x[cell].append(current_block_start)
+                elif axis == "y":
+                    cell = f'x{coordinates[j + i][0]}_{coordinates[j + i][1]}_{coordinates[j + i][2]}'
+                    cells_in_y[cell].append(current_block_start)
+                elif axis == "z":
+                    cell = f'x{coordinates[j + i][0]}_{coordinates[j + i][1]}_{coordinates[j + i][2]}'
+                    cells_in_z[cell].append(current_block_start)
 
-                cells_in_axis[cell].append(current_block_start)
+                def_filled[cell].append(current_block_start)
+                # print("here", current_block_start,cell)
                 filled_cells.append(Or(Not(current_block_start), Symbol(cell)))
-            print(cells_in_axis)
+            # print("filled_cells", filled_cells)
 
             if len(filled_cells) > 1:
                 args_that_fill_cells.append(And(*filled_cells))
             else:
                 args_that_fill_cells.append(And(filled_cells[0]))
-            # print("args_that_fill_cells", args_that_fill_cells)
+            print("args_that_fill_cells", args_that_fill_cells)
+
+        # print("def_filled", def_filled)
+        # print("starts", starts)
+        def_true = []
+        for key, value in def_filled.items():
+            if len(value) == len(starts):
+                def_true.append(Symbol(key))
+        print("def_true", def_true)
 
         # Make sure there is only one start type
-        args_that_imply_only_one_start.append(to_cnf(Xor(*starts)))
 
+        args_that_imply_only_one_start.append(exactly_one_true(starts))
         print("args_that_imply_only_one_start", args_that_imply_only_one_start)
 
-        if colored:
-            for i in range(1, num_blocks):
-                if i > 0 and hint_colors[i] == hint_colors[i - 1]:
-                    earliest_start += block
-        elif not colored:
+        # Adjusting the latest start based on the next block's color
+        if block_index < len(hint_numbers) - 1:  # Ensure we are not at the last block
+            if hint_colors[block_index] == hint_colors[block_index + 1]:
+                earliest_start += block + 1  # Add 1 space if the previous block has the same color
+                latest_start += block + 1
+            else:
+                earliest_start += block
+                latest_start += block
+        else:
             earliest_start += block + 1
+            latest_start += block + 1  # No next block, just add the current block size
 
-        latest_start += block + 1
+    # for keys, values in cells_in_axis.items():
+    #     args_say_cells_have_starts.append(Or(Not(keys), Or(*values)))
 
-    for keys, values in cells_in_axis.items():
-        args_say_cells_have_starts.append(Or(Not(keys), Or(*values)))
-
-    print(And(*args_that_imply_only_one_start, *args_that_fill_cells, *args_that_imply, *args_say_cells_have_starts))
-    return And(*args_that_imply_only_one_start, *args_that_fill_cells, *args_that_imply, *args_say_cells_have_starts)
+    # print(args_that_imply_only_one_start, "\n", args_that_fill_cells, "\n", args_that_imply)
+    #  print(And(*args_that_imply_only_one_start, *args_that_fill_cells, *args_that_imply, *def_true))
+    return And(*args_that_imply_only_one_start, *args_that_fill_cells, *args_that_imply, *def_true)
 
 
 run_counter = 0
 
 
 def generate_cnf(shape, hints):
-    global variables
+    global variables, cells_in_row, cells_in_col
 
     def generator(index, hint_numbers, hint_colors, axis, is_rect):
         global run_counter
         run_counter += 1
         print("run_counter", run_counter)
         if is_rect:
-            rect_args = create_start_args(index, m, axis, hint_numbers, hint_colors)
+            if axis == "r":
+                rect_args = create_start_args(index, n, axis, hint_numbers, hint_colors)
+            else:
+                rect_args = create_start_args(index, m, axis, hint_numbers, hint_colors)
 
             return rect_args
+
+        elif not is_rect:
+            coordinates = []
+            line_length = 0
+            for x, y, z in board.keys():
+                if axis == "x":
+                    if x == index:
+                        line_length += 1
+                        coordinates.append((x, y, z))
+                elif axis == "y":
+                    if y == index:
+                        line_length += 1
+                        coordinates.append((x, y, z))
+                    q = []
+                    q.extend(hint_numbers)
+                    hint_numbers = q[::-1]
+                    r = []
+                    r.extend(hint_colors)
+                    hint_colors = r[::-1]
+
+                elif axis == "z":
+                    if z == index:
+                        line_length += 1
+                        coordinates.append((x, y, z))
+
+            print(axis, coordinates)
+            hex_args = create_start_args(index, line_length, axis, hint_numbers, hint_colors, coordinates)
+
+            return hex_args
 
     if shape[0] == "rect":
         m = int(shape[1])  # Number of rows
@@ -231,7 +299,7 @@ def generate_cnf(shape, hints):
         # coordinates
         for i in range(m):
             for j in range(n):
-                variables.append(Symbol(f'x{i}{j}'))
+                variables.append(Symbol(f'x{i}_{j}'))
 
         # Parse the row and column hints
         row_hints = hints[:m]
@@ -241,15 +309,58 @@ def generate_cnf(shape, hints):
         col_args = [generator(j, hint_numbers, hint_colors, "c", True) for j, (hint_numbers, hint_colors) in
                     enumerate(col_hints)]
 
-        print("variables", variables)
-        print(len(variables))
+        # print("variables", variables)
+        # print(len(variables))
 
+        # print(row_args, "\n", col_args)
         args = [*row_args, *col_args]
 
-        print(And(*args))
-        # dnf_to_cnf(args)
+    elif shape[0] == "hex":
+        edge = int(shape[1])  # Number of rows
 
-        return And(*args)
+        # coordinates
+        board = create_hex_board(edge)
+        for x, y, z in board.keys():
+            variables.append(Symbol(f'x{x}_{y}_{z}'))
+        print("variables", variables)
+
+        hint_length = edge + edge - 1
+        x_hints = hints[:hint_length]
+        z_hints = hints[hint_length * 2:]
+        y_hints = hints[hint_length:hint_length * 2]
+        row_count = range(-edge + 1, edge)
+
+        x_args = [generator(i, x_hints[i + edge - 1][0], x_hints[i + edge - 1][1], "x", False) for i in row_count]
+        y_args = [generator(i, y_hints[i + edge - 1][0], y_hints[i + edge - 1][1], "y", False) for i in row_count]
+        z_args = [generator(i, z_hints[i + edge - 1][0], z_hints[i + edge - 1][1], "z", False) for i in row_count]
+
+        # # print(len(variables))
+        #
+        # # print(row_args, "\n", col_args)
+        args = [*x_args, *y_args, *z_args]
+
+    cell_args = []
+    for keys, values in cells_in_row.items():
+        if values:
+            # print(keys, values)
+            cell_args.append(Or(Not(keys), Or(*values)))
+            # for value in values:
+            #     print("HERE",keys, value)
+            #     cell_args.append(Or(Symbol(keys),Not(value)))
+
+    for keys, values in cells_in_col.items():
+        if values:
+            # print(keys, values)
+            cell_args.append(Or(Not(keys), Or(*values)))
+
+    # print("cell_args", cell_args)
+    args.append(And(*cell_args))
+    # print("keys", args)
+
+    # print(And(*args))
+    # dnf_to_cnf(args)
+
+    return And(*args)
 
 
 def sympy_to_cnf(shape, sympy_expr):
@@ -259,33 +370,20 @@ def sympy_to_cnf(shape, sympy_expr):
     global variables
     variable_map = {}
 
-    if shape[0] == "rect":
-
-        for i, item in enumerate(variables):
-            variable_map[str(item)] = i + 1
-
-        print(variable_map)
-        print("variable_map", variable_map["c001"])
-
-    elif shape[0] == "hex":
-        edge = int(shape[1])
-        variable_map = {}
-        index = 1
-        board = create_hex_board(edge)
-
-        for x, y, z in board.keys():
-            var_name = f'x{x}_{y}_{z}'
-            variable_map[var_name] = index
-            index += 1
+    for i, item in enumerate(variables):
+        variable_map[str(item)] = i + 1
 
         # print(variable_map)
+
+    #        print("variable_map", variable_map["c001"])
+
+    # print(variable_map)
 
     # print(variable_map)
 
     # Replace SymPy variable names with integer IDs
     def replace_vars(expr):
         if isinstance(expr, Symbol):
-            print(srepr(str(expr)))
             return Symbol(str(variable_map[str(expr)]))
         elif isinstance(expr, And):
             return And(*[replace_vars(arg) for arg in expr.args])
@@ -298,7 +396,7 @@ def sympy_to_cnf(shape, sympy_expr):
 
     # Convert the expression to CNF form
     cnf_expr = replace_vars(sympy_expr)
-    print("cnf_expr", cnf_expr)
+
     # print(variable_map)
 
     # Convert CNF expression to a list of clauses for PySAT
@@ -341,10 +439,15 @@ def sat_solver(shape, sympy_expr):
         is_satisfiable = solver.solve()
         if is_satisfiable:
             model = solver.get_model()
-            print("Satisfiable with model:", model[:(3 * e * e) - (3 * e) + 1])
+            print("Satisfiable with model:", model)
+            # print("Satisfiable")
             return model
         else:
             print("Unsatisfiable")
+            print(solver.accum_stats())
+
+            # print("Proof", solver.get_proof())
+            print('and the unsatisfiable core is:', solver.get_core())
 
 
 def write_model_to_file(model, shape, hints, filename):
@@ -450,6 +553,7 @@ def write_model_to_file(model, shape, hints, filename):
 def main():
     shape, color, hints = get_content(FILENAME)
     cnf_formula = generate_cnf(shape, hints)
+    print("cnf_formula", is_cnf(cnf_formula), cnf_formula)
     model = sat_solver(shape, cnf_formula)
     if model:
         write_model_to_file(model, shape, hints, FILENAME)
