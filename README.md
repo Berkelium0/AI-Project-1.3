@@ -22,14 +22,22 @@ install them:
 
 The project uses the following Python libraries:
 
-+ **NumPy**
++ **itertools Library**
 
-    - **Description**: NumPy is a fundamental package for numerical computations in Python. It provides support for
-      large, multi-dimensional arrays and matrices, along with a collection of mathematical functions to operate on
-      these arrays efficiently.
-    - **Usage in the Project**: NumPy is used for handling and manipulating the grid data, performing operations on
-      arrays, and managing the puzzle’s state in a memory-efficient manner.
-    - **Installation**: Run `pip install numpy`
+    - **Description**: The itertools library is a standard Python module that provides a collection of fast,
+      memory-efficient tools for creating iterators for various looping and combinatorial tasks.
+    - **Usage in the Project**:
+
+        - **`count`**: The `count` function from `itertools` creates an iterator that generates consecutive integers,
+          starting from a specified number. In this project, `count` is used to generate sequences of indices or other
+          counting purposes, which are helpful in iterating over puzzle rows, columns, or coordinates.
+
+        - **`combinations` (imported as `itertools_combinations`)**: The `combinations` function generates all possible
+          combinations of a specified length from the input iterable. In this project, `itertools_combinations` is used
+          to generate possible placements of blocks within the puzzle rows or columns, which is essential for
+          determining valid configurations based on the given hints.
+
+    - **Installation**: No installation is required, as `itertools` is a built-in Python module.
 
 + **SymPy**
 
@@ -53,16 +61,71 @@ The project uses the following Python libraries:
 To install all the required libraries, you can use the following `pip` command:
 
 ```bash
-pip install numpy sympy python-sat
+pip install sympy python-sat
 ```
 
 ## Usage
 
-## Running the Solver
+1. **Set the Puzzle File**: Update the `FILENAME` variable with the path to your desired `.clues` file.
 
-## Solving a Nonogram
+2. **Run the Script**: Execute the script to solve the Nonogram. The solution will be output based on the script's
+   settings.
 
-## Structure and Time Complexities
+## Different Approaches
+
+For this project, I used two different approaches. My initial approach was to create every possible combination of
+blocks, according to the clues and send that to the SAT solver. For small boards this approach worked very well, but
+after the size of the board grew larger than 10x10, the time it required became more and more unbearable. My other
+approach was to create rules depending on the starting points of the blocks and implement their effects on eachother as
+rules, instead of brute-forcing by calculating every possible combination. In the end, this approach was exponantially
+faster and clues that took over an hour to solve with the combination approach was being solved in mere minutes. Here is
+what I did and learned while implementing both of the approaches:
+
+### Combinations Approach
+
+In both approaches I start by getting the board info from the `.clues` file. Then, I send the shape, color and hints
+information to the `generate_dnf`function. There, the board is created depending on the shape info and each cell are
+added to the `variables`list. After that, the hints are seperated depending on its axis ("row","col,"x","y","z") and
+then sent o the `generate_combinations`function, which creates every possible combination that row can have. It does
+this by calculating some variables first.
+
++ `total_block_length`= sum of all the block clues.
++ `num_blocks`= length of the block clues list, tells how many blocks there are.
++ `minimum_requred_spaces` = required space count between the blocks. Depends if colored or not. If not colored, it is
+  num_blocks - 1 because a space has to seperate each block. else, it is +1 for each block of the same color that are
+  next to eachother.
++ `total_occupied_cells` = this is the minimum number of cells that has to be filled stated by the clue. its calculated
+  with `total_block_length` + `minimum_required_spaces`.
++ `remaining_cells` = the number of "free" spaces that we can move around and create the combinations. it
+  is `length_of_the_row` - `total_occupied_cells`
++ `gap_positions` = this is the number of gaps where free spaces can be put in. these gaps are between each block and at
+  the start and the end, which means their number is `num_blocks`+ 1
+
+Given this setup, the function uses combinatorial selection to generate all valid configurations:
+
+**Combinatorial Selection:** The code selects gaps − 1 positions from a total of cells + gaps − 1 possible positions. This
+is mathematically expressed as:
+
+\[
+\binom{\text{cells} + \text{gaps} - 1}{\text{gaps} - 1}
+\]
+
+This binomial coefficient represents the number of ways to choose positions for the gaps within the sequence of cells.
+
+**Gap Size Calculation**: Once the positions of the gaps are selected, the code calculates the size of each gap between
+the
+blocks. If 𝑝<sub>1</sub>, 𝑝<sub>2</sub>, … , 𝑝<sub>𝑔 − 1</sub>
+are the chosen positions, the gaps are computed as:
+
+gaps_arr = [ 𝑝<sub>1</sub>, 𝑝<sub>2</sub> − 𝑝<sub>1</sub> − 1 , … , cells + gaps − 2 − 𝑝<sub>𝑔 − 1</sub>]
+
+I initially thought this was caused because of the `to_cnf`function in the sympy library. In its documents, it is stated
+that it uses a simple method to convert dnf to cnf. It just multiplies each variable with eachoder to make it cnf (*
+PART BETTER DKFJGDLFK**) To solve this issue I implemented the tseytin transformation formula
+
+### Block Start Approach
+
+## Structure and Time Complexities of the Combinations Approach
 
 In this section, we'll describe the structure and purpose of each function in the Nonogram solver, along with their
 respective time complexities.

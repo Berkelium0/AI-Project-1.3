@@ -4,7 +4,7 @@ from pysat.solvers import Solver
 from itertools import combinations as itertools_combinations
 from itertools import count
 
-FILENAME = ("clues/trees-1.clues")
+FILENAME = "clues/trees-1.clues"
 colored = False
 
 
@@ -99,7 +99,6 @@ def generate_combinations(n, blocks, block_colors):
             row.extend([0] * gap)
             row.extend([1] * block)
             previous_color = color
-        # print(n, len(row), blocks, block_colors, row)
         results.append(row[:n])
     print(results)
     return results
@@ -395,10 +394,7 @@ def sympy_to_cnf(shape, sympy_expr):
 def sat_solver(shape, sympy_expr):
     # Convert SymPy expression to CNF format for PySAT
     cnf_clauses = sympy_to_cnf(shape, sympy_expr)
-    e = int(shape[1])
-    # print(cnf_clauses)
-    # with open("cnf_formulas.txt", "w") as f:
-    #     f.writelines(str(cnf_clauses))
+
     # Initialize CNF with the clauses
     cnf = CNF(from_clauses=cnf_clauses)
 

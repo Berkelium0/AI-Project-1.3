@@ -1,11 +1,9 @@
-from sympy import symbols, Or, And, Not, Symbol, srepr
-from sympy.logic.boolalg import is_cnf
+from sympy import Or, And, Not, Symbol
 from pysat.formula import CNF
 from pysat.solvers import Solver
-from itertools import combinations
 from itertools import count
 
-FILENAME = "clues/nonogram.clues"
+FILENAME = "clues/stripes-1.clues"
 colored = False
 
 
@@ -105,6 +103,7 @@ def create_start_args(index, length, axis, hint_numbers, hint_colors, coordinate
     args_that_imply = []
     args_that_fill_cells = []
     def_filled = {}
+    def_true = None
 
     args_that_imply_only_one_start = []
     earliest_start = 0
@@ -183,6 +182,7 @@ def create_start_args(index, length, axis, hint_numbers, hint_colors, coordinate
 
             # This start Implies the cells in it has to be filled
             filled_cells = []
+            cell = ""
             for i in range(block):
                 if axis == "r":
                     # print(index, j, i, current_block_start, length, earliest_start, latest_start)
@@ -292,6 +292,7 @@ def generate_cnf(shape, hints):
 
             return hex_args
 
+    args = []
     cell_args = []
 
     if shape[0] == "rect":
@@ -371,7 +372,7 @@ def generate_cnf(shape, hints):
     return And(*args)
 
 
-def sympy_to_cnf(shape, sympy_expr):
+def sympy_to_cnf(sympy_expr):
     # print("in")
     # print(sympy_expr)
     # Extract dimensions
@@ -432,10 +433,9 @@ def sympy_to_cnf(shape, sympy_expr):
     return clauses
 
 
-def sat_solver(shape, sympy_expr):
+def sat_solver(sympy_expr):
     # Convert SymPy expression to CNF format for PySAT
-    cnf_clauses = sympy_to_cnf(shape, sympy_expr)
-    e = int(shape[1])
+    cnf_clauses = sympy_to_cnf(sympy_expr)
     # print(cnf_clauses)
     # print(cnf_clauses)
     # Initialize CNF with the clauses
@@ -562,7 +562,7 @@ def main():
     shape, color, hints = get_content(FILENAME)
     cnf_formula = generate_cnf(shape, hints)
     # print("cnf_formula", is_cnf(cnf_formula), cnf_formula)
-    model = sat_solver(shape, cnf_formula)
+    model = sat_solver(cnf_formula)
     if model:
         write_model_to_file(model, shape, hints, FILENAME)
 
