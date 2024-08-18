@@ -26,17 +26,10 @@ The project uses the following Python libraries:
 
     - **Description**: The itertools library is a standard Python module that provides a collection of fast,
       memory-efficient tools for creating iterators for various looping and combinatorial tasks.
-    - **Usage in the Project**:
-
-        - **`count`**: The `count` function from `itertools` creates an iterator that generates consecutive integers,
-          starting from a specified number. In this project, `count` is used to generate sequences of indices or other
-          counting purposes, which are helpful in iterating over puzzle rows, columns, or coordinates.
-
-        - **`combinations` (imported as `itertools_combinations`)**: The `combinations` function generates all possible
-          combinations of a specified length from the input iterable. In this project, `itertools_combinations` is used
-          to generate possible placements of blocks within the puzzle rows or columns, which is essential for
-          determining valid configurations based on the given hints.
-
+    - **Usage in the Project**: `combinations` (imported as `itertools_combinations`)**: The `combinations` function
+      generates all possible combinations of a specified length from the input iterable. In this
+      project, `itertools_combinations` is used to generate possible placements of blocks within the puzzle rows or
+      columns.
     - **Installation**: No installation is required, as `itertools` is a built-in Python module.
 
 + **SymPy**
@@ -73,57 +66,65 @@ pip install sympy python-sat
 
 ## Different Approaches
 
-For this project, I used two different approaches. My initial approach was to create every possible combination of
-blocks, according to the clues and send that to the SAT solver. For small boards this approach worked very well, but
-after the size of the board grew larger than 10x10, the time it required became more and more unbearable. My other
-approach was to create rules depending on the starting points of the blocks and implement their effects on eachother as
-rules, instead of brute-forcing by calculating every possible combination. In the end, this approach was exponantially
-faster and clues that took over an hour to solve with the combination approach was being solved in mere minutes. Here is
-what I did and learned while implementing both of the approaches:
+For this project, I experimented with two distinct approaches. Initially, I generated all possible block combinations
+based on the clues and passed them to the SAT solver. This method worked well for small boards, but as the board size
+grew beyond 10x10, the processing time became increasingly impractical.
+
+To address this, I developed a second approach that focused on creating rules based on the starting positions of the
+blocks and their interactions, rather than brute-forcing every possible combination. This rule-based method proved to be
+exponentially faster, reducing solving times from over an hour to just a few minutes for larger puzzles. Here's what I
+did and learned while implementing both approaches:
 
 ### Combinations Approach
 
-In both approaches I start by getting the board info from the `.clues` file. Then, I send the shape, color and hints
-information to the `generate_dnf`function. There, the board is created depending on the shape info and each cell are
-added to the `variables`list. After that, the hints are seperated depending on its axis ("row","col,"x","y","z") and
-then sent o the `generate_combinations`function, which creates every possible combination that row can have. It does
-this by calculating some variables first.
+In both approaches, I begin by extracting the board information from the `.clues` file. The shape, color, and hints are
+then passed to the `generate_dnf` function. Within this function, the board is constructed based on the shape
+information,
+and each cell is added to the `variables` list. Next, the hints are categorized by their axis ("row", "col", "x", "y", "
+z") and sent to the `generate_combinations` function, which calculates necessary variables and generates all possible
+combinations for each row.
 
-+ `total_block_length`= sum of all the block clues.
-+ `num_blocks`= length of the block clues list, tells how many blocks there are.
-+ `minimum_requred_spaces` = required space count between the blocks. Depends if colored or not. If not colored, it is
-  num_blocks - 1 because a space has to seperate each block. else, it is +1 for each block of the same color that are
-  next to eachother.
-+ `total_occupied_cells` = this is the minimum number of cells that has to be filled stated by the clue. its calculated
-  with `total_block_length` + `minimum_required_spaces`.
-+ `remaining_cells` = the number of "free" spaces that we can move around and create the combinations. it
-  is `length_of_the_row` - `total_occupied_cells`
-+ `gap_positions` = this is the number of gaps where free spaces can be put in. these gaps are between each block and at
-  the start and the end, which means their number is `num_blocks`+ 1
++ `total_block_length`= sum of all block clues.
++ `num_blocks`= The number of blocks, determined by the length of the block clues list.
++ `minimum_requred_spaces` = The minimum number of spaces required between blocks. If the blocks are not colored, this
+  is 'num_blocks - 1' (one space between each block). If colored, it includes additional spaces between adjacent blocks
+  of
+  the same color.
++ `total_occupied_cells` = The minimum number of cells that must be filled, calculated
+  as `total_block_length` + `minimum_required_spaces`.
++ `remaining_cells` = The number of free spaces available for creating combinations, computed
+  as `length_of_the_row` - `total_occupied_cells`
++ `gap_positions` = The number of gaps where free spaces can be inserted. This includes gaps between blocks and at the
+  start and end, resulting in `num_blocks + 1` gaps
 
 Given this setup, the function uses combinatorial selection to generate all valid configurations:
 
-**Combinatorial Selection:** The code selects gaps − 1 positions from a total of cells + gaps − 1 possible positions. This
-is mathematically expressed as:
+**Combinatorial Selection:** The code selects gaps − 1 positions from a total of cells + gaps − 1 possible positions.
+This is expressed as:
 
-\[
-\binom{\text{cells} + \text{gaps} - 1}{\text{gaps} - 1}
-\]
+> (cells + gaps - 1, gaps - 1)
 
 This binomial coefficient represents the number of ways to choose positions for the gaps within the sequence of cells.
 
 **Gap Size Calculation**: Once the positions of the gaps are selected, the code calculates the size of each gap between
-the
-blocks. If 𝑝<sub>1</sub>, 𝑝<sub>2</sub>, … , 𝑝<sub>𝑔 − 1</sub>
-are the chosen positions, the gaps are computed as:
+the blocks. If 𝑝<sub>1</sub>, 𝑝<sub>2</sub>, … , 𝑝<sub>𝑔 − 1</sub> are the chosen positions, the gaps are computed as:
 
-gaps_arr = [ 𝑝<sub>1</sub>, 𝑝<sub>2</sub> − 𝑝<sub>1</sub> − 1 , … , cells + gaps − 2 − 𝑝<sub>𝑔 − 1</sub>]
+gaps_arr = [𝑝<sub>1</sub>, 𝑝<sub>2</sub> − 𝑝<sub>1</sub> − 1 , … , cells + gaps − 2 − 𝑝<sub>𝑔 − 1</sub>]
+The combinations are generated as sequences of 1s and 0s to represent filled and unfilled blocks, and this information
+is sent back. In the DNF (Disjunctive Normal Form) stage, cells in the row are marked with Not if they are empty and
+combined with `And` operators within each combination, and `Or` operators between different combinations. Once all
+combinations are processed, these DNF formulas are converted to CNF (Conjunctive Normal Form) using the `dnf_to_cnf`
+function to make them suitable for the SAT solver.
 
-I initially thought this was caused because of the `to_cnf`function in the sympy library. In its documents, it is stated
-that it uses a simple method to convert dnf to cnf. It just multiplies each variable with eachoder to make it cnf (*
-PART BETTER DKFJGDLFK**) To solve this issue I implemented the tseytin transformation formula
+Initially, the `to_cnf` function was used for this conversion, but it became too slow as board sizes increased. This
+function's complexity grows exponentially with the number of cells due to its variable distribution method. To address
+this, I implemented the Tseytin transformation, which introduces auxiliary variables to manage complexity better. This
+allowed the script to handle boards larger than 10x10, but it still struggled with boards approaching 20x20. As the
+inefficiencies became evident, alternative approaches were explored for even larger boards.
 
 ### Block Start Approach
+
+
 
 ## Structure and Time Complexities of the Combinations Approach
 
@@ -255,5 +256,5 @@ file.
 
 - Overall: O(m⋅2<sup>n</sup>+T), where T is the time taken by the SAT solver.
 
-## Additional Information
+## Structure and Time Complexities of the Block Start Approach
 
