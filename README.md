@@ -4,8 +4,7 @@
 
 ## Hexagonal and Rectangular Grid Puzzle Solver
 
-This Python project implements a solver for puzzles on hexagonal and rectangular grids using logical deduction and SAT (
-Boolean satisfiability) solving techniques. The solver can handle puzzles where certain conditions must be met along
+This Python project implements a solver for puzzles on hexagonal and rectangular grids using logical deduction and SAT (Boolean satisfiability) solving techniques. The solver can handle puzzles where certain conditions must be met along
 rows, columns, or hexagonal lines based on provided hints. The puzzles can be either monochrome or colored.
 
 ## Dependencies
