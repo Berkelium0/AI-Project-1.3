@@ -134,7 +134,7 @@ four specific rules:
 
 _(S<sub>i_rc</sub> where i = start number, r = row coordinate, c = column coordinate)_
 
-> S<sub>1_01</sub> => ~S<sub>2_00</sub> ∧ ~S<sub>2_01</sub> ∧ ~S<sub>3_00</sub> ∧ ~S<sub>3_01</sub> ∧ ... ∧ ~S<sub>
+> S<sub>1_01</sub> ⇒ ~S<sub>2_00</sub> ∧ ~S<sub>2_01</sub> ∧ ~S<sub>3_00</sub> ∧ ~S<sub>3_01</sub> ∧ ... ∧ ~S<sub>
 > n_01</sub>
 
 2. **There Can Only Be One Start:**
@@ -147,12 +147,12 @@ _(S<sub>i_rc</sub> where i = start number, r = row coordinate, c = column coordi
 3. **Start Implies Cells Here:**
    If a block starts at a particular position, all cells that it occupies must be true (filled).
 
-> S<sub>1_01</sub> => C<sub>01</sub> ∧ C<sub>02</sub> ∧ ... ∧ C<sub>0n</sub>
+> S<sub>1_01</sub> ⇒ C<sub>01</sub> ∧ C<sub>02</sub> ∧ ... ∧ C<sub>0n</sub>
 
 4. **Cell Here Implies a Start:**
    If a cell is true (filled), it implies that one of the starts covering that cell must be true.
 
-> C<sub>02</sub> => S<sub>1_00</sub> ∨ S<sub>1_01</sub> ∨ ... ∨ S<sub>n_02</sub>
+> C<sub>02</sub> ⇒ S<sub>1_00</sub> ∨ S<sub>1_01</sub> ∨ ... ∨ S<sub>n_02</sub>
 
 Implementing these rules, rather than calculating all possible combinations, significantly reduced the complexity. As a
 result, the script was able to solve each board in just a matter of minutes.
