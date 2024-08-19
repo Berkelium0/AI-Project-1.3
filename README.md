@@ -4,7 +4,8 @@
 
 ## Hexagonal and Rectangular Grid Puzzle Solver
 
-This Python project implements a solver for puzzles on hexagonal and rectangular grids using logical deduction and SAT (Boolean satisfiability) solving techniques. The solver can handle puzzles where certain conditions must be met along
+This Python project implements a solver for puzzles on hexagonal and rectangular grids using logical deduction and SAT (
+Boolean satisfiability) solving techniques. The solver can handle puzzles where certain conditions must be met along
 rows, columns, or hexagonal lines based on provided hints. The puzzles can be either monochrome or colored.
 
 ## Dependencies
@@ -219,7 +220,7 @@ This function writes the solution model obtained from the SAT solver to a file.
 
 ## Structure and Time Complexities of the Block Start Approach
 
-Th
+Here are the two new functions implemented for this approach.
 
 ### exactly_one_true(clauses)
 
@@ -231,8 +232,19 @@ complexity.
 
 ### create_start_args(index, length, axis, hint_numbers, hint_colors, coordinates=None)
 
-This function generates the CNF arguments for a given axis (row, column, or diagonal) based on the provided hints. It
-creates clauses to ensure blocks are placed according to the hints and that no conflicting placements occur.
+This function generates CNF arguments for a given axis (row, column, or diagonal) based on the provided hints. It
+constructs clauses to ensure blocks are placed according to the hints and prevent conflicting placements.
+
+It tracks the variables required by each rule:
+
++ **Rule 1:** If the block is not the last one, it creates a clause ensuring that the next block cannot start in any of
+  the cells up to the end of the current block plus one additional cell.
++ **Rule 2:** It monitors all possible start locations for a block and sends these to the exactly_one_true() function to
+  ensure only one start is true.
++ **Rule 3:** It creates clauses to ensure that if a block's start is true, the cells occupied by this block must also
+  be true.
++ **Rule 4:** It uses a dictionary to track all cells in the row and adds the start variable to the list of each cell
+  that the start covers.
 
 **Time Complexity:** O(L × B × (L + B)) where L is the length of the row/column/axis and B is the number of blocks (or
 hints). The complexity arises from iterating over all possible start positions and blocks.
