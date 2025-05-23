@@ -1,6 +1,6 @@
-# Repository for ss24.1.3/team706
+# Repository for AI Project 1.3
 
-**Topic:** SS24 Assignment 1.3: Solve Nonograms
+**Assignment:** [Solve Nonograms](https://kwarc.info/teaching/AISysProj/SS24/assignment-1.3.pdf)
 
 ## Hexagonal and Rectangular Grid Puzzle Solver
 
